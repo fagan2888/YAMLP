@@ -3,13 +3,29 @@ import coulomb_matrix
 import extractEnergy
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import divideData
 
 
 fileX = open("X.csv", "r")
 fileY = open("Y.csv", "r")
 
-descriptor = coulomb_matrix.coulombMatrix(fileX)
-energy = extractEnergy.getEnergy(fileY)
+## ----------------- ** Splitting the data set ** ---------
+
+X = coulomb_matrix.coulombMatrix(fileX)
+Y = extractEnergy.getEnergy(fileY)
+
+# This is an array with the percentage of samples that will go in the training, cross-validation and validation set
+dataProportions = np.array([0.8, 0, 0.2])
+splitX, splitY = divideData.divideData(X, Y, dataProportions)
+
+X_trainSet = splitX[0]
+Y_trainSet = splitY[0]
+
+X_crossVal = splitX[1]
+Y_crossVal = splitY[1]
+
+X_val = splitX[2]
+Y_val = splitY[2]
 
 ## ----------------- ** Structure of neural network ** ---------
 
@@ -21,18 +37,19 @@ learning_iterations = 200
 eps = tf.constant(0.12, dtype=tf.float32)
 
 # Other important parameters
-n_samples = energy.shape[0]
-n_feat = descriptor.shape[1]
+n_samples = Y_trainSet.shape[0]
+n_feat = X_trainSet.shape[1]
 
 ## ----------------- ** Initial set up of the NN ** ---------
 
-X_train = tf.placeholder(tf.float32, descriptor.shape)
-Y_train = tf.placeholder(tf.float32, energy.shape)
+X_train = tf.placeholder(tf.float32, [None, n_feat])
+Y_train = tf.placeholder(tf.float32, [None, n_feat])
 
-weights1 = tf.Variable(tf.random_normal([n_hidden_layer, n_feat])*2*eps)
-bias1 = tf.Variable(tf.random_normal([n_samples, n_hidden_layer])*2*eps)
-weights2 = tf.Variable(tf.random_normal([1, n_hidden_layer])*2*eps)
-bias2 = tf.Variable(tf.random_normal([n_samples, 1])*2*eps)
+# Fix why you have the bias that depend on sample size...
+weights1 = tf.Variable(tf.random_normal([n_hidden_layer, n_feat])*2*eps - eps)
+bias1 = tf.Variable(tf.random_normal([None, n_hidden_layer])*2*eps - eps)
+weights2 = tf.Variable(tf.random_normal([1, n_hidden_layer])*2*eps - eps)
+bias2 = tf.Variable(tf.random_normal([None, 1])*2*eps - eps)
 
 a1 = tf.matmul(X_train, tf.transpose(weights1)) + bias1     # output of layer1, size = n_sample x n_hidden_layer (linear activation function)
 model = tf.matmul(a1, tf.transpose(weights2)) + bias2       # output of last layer, size = n_samples x 1
@@ -47,8 +64,11 @@ cost_array = []
 with tf.Session() as sess:
     sess.run(init)
     for iter in range(learning_iterations):
-        opt, c = sess.run([optimizer, cost], feed_dict={X_train: descriptor, Y_train: energy})
+        opt, c = sess.run([optimizer, cost], feed_dict={X_train: X_trainSet, Y_train: Y_trainSet})
         cost_array.append(c)
+
+    valCost = sess.run(cost, feed_dict={X_train: X_val, Y_train: Y_val})
+    print valCost
 
 y = np.array(cost_array)
 plt.plot(y)

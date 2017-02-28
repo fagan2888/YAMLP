@@ -15,7 +15,6 @@ def coulombMatrix(fileX):
         'N': 7.0}
 
     # Variables needed for the loop logic
-    isFirstLine = True
     isFirstTime = True
     n_samples = 0       # number of training samples
 
