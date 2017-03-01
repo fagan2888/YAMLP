@@ -43,13 +43,12 @@ n_feat = X_trainSet.shape[1]
 ## ----------------- ** Initial set up of the NN ** ---------
 
 X_train = tf.placeholder(tf.float32, [None, n_feat])
-Y_train = tf.placeholder(tf.float32, [None, n_feat])
+Y_train = tf.placeholder(tf.float32, [None, 1])
 
-# Fix why you have the bias that depend on sample size...
 weights1 = tf.Variable(tf.random_normal([n_hidden_layer, n_feat])*2*eps - eps)
-bias1 = tf.Variable(tf.random_normal([None, n_hidden_layer])*2*eps - eps)
+bias1 = tf.Variable(tf.random_normal([n_hidden_layer])*2*eps - eps)
 weights2 = tf.Variable(tf.random_normal([1, n_hidden_layer])*2*eps - eps)
-bias2 = tf.Variable(tf.random_normal([None, 1])*2*eps - eps)
+bias2 = tf.Variable(tf.random_normal([1])*2*eps - eps)
 
 a1 = tf.matmul(X_train, tf.transpose(weights1)) + bias1     # output of layer1, size = n_sample x n_hidden_layer (linear activation function)
 model = tf.matmul(a1, tf.transpose(weights2)) + bias2       # output of last layer, size = n_samples x 1
@@ -67,8 +66,9 @@ with tf.Session() as sess:
         opt, c = sess.run([optimizer, cost], feed_dict={X_train: X_trainSet, Y_train: Y_trainSet})
         cost_array.append(c)
 
-    valCost = sess.run(cost, feed_dict={X_train: X_val, Y_train: Y_val})
-    print valCost
+    enePred = sess.run(model, feed_dict={X_train: X_val})
+    print enePred
+    print Y_val
 
 y = np.array(cost_array)
 plt.plot(y)
