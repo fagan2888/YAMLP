@@ -3,7 +3,7 @@
 
 import numpy as np
 from numpy import linalg as LA
-#import matplotlib.pyplot as plt
+import matplotlib.pyplot as plt
 
 def coulombMatrix(fileX):
 
@@ -19,8 +19,8 @@ def coulombMatrix(fileX):
     n_samples = 0       # number of training samples
 
     # Setting up plotting of the matrix
-    # fig = plt.figure(figsize=(7, 7))
-    # ax = fig.add_subplot(111)
+    fig = plt.figure(figsize=(7, 7))
+    ax = fig.add_subplot(111)
 
     # This reads the first line to establish the number of atoms present and then counts the number of samples
     for line in fileX:
@@ -75,8 +75,8 @@ def coulombMatrix(fileX):
         sampleCMatrix[lineCount, :] = cMatrix.flatten()
         lineCount += 1
 
-    # plt.matshow(sampleCMatrix, fignum=False)
-    # plt.show()
+    plt.matshow(sampleCMatrix, fignum=False, )
+    plt.show()
 
     return sampleCMatrix
 
