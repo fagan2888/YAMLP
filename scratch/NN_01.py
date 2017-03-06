@@ -4,8 +4,11 @@ import extractEnergy
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import divideData
+import importData
 
+# ------------------ ** Extracting the dataset ** ---------
 
+importData.XMLtoCSV('/Users/walfits/Repositories/tensorflow/AMP/input1.xml')
 fileX = open("X.csv", "r")
 fileY = open("Y.csv", "r")
 
@@ -15,7 +18,7 @@ X = coulomb_matrix.coulombMatrix(fileX)
 Y = extractEnergy.getEnergy(fileY)
 
 # This is an array with the percentage of samples that will go in the training, cross-validation and validation set
-dataProportions = np.array([0.8, 0, 0.2])
+dataProportions = np.array([1, 0, 0])
 splitX, splitY = divideData.divideData(X, Y, dataProportions)
 
 X_trainSet = splitX[0]
@@ -29,7 +32,7 @@ Y_val = splitY[2]
 
 ## ----------------- ** Structure of neural network ** ---------
 
-n_hidden_layer = 25
+n_hidden_layer = 20
 
 # Parameters for training
 learning_rate = 0.001
@@ -50,7 +53,7 @@ bias1 = tf.Variable(tf.random_normal([n_hidden_layer])*2*eps - eps)
 weights2 = tf.Variable(tf.random_normal([1, n_hidden_layer])*2*eps - eps)
 bias2 = tf.Variable(tf.random_normal([1])*2*eps - eps)
 
-a1 = tf.matmul(X_train, tf.transpose(weights1)) + bias1     # output of layer1, size = n_sample x n_hidden_layer (linear activation function)
+a1 = tf.matmul(X_train, tf.transpose(weights1)) + bias1     # output of layer1, size = n_sample x n_hidden_layer
 model = tf.matmul(a1, tf.transpose(weights2)) + bias2       # output of last layer, size = n_samples x 1
 cost = tf.reduce_mean(tf.nn.l2_loss((model-Y_train)))       # using the quadratic cost function
 optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate).minimize(cost)
@@ -66,9 +69,10 @@ with tf.Session() as sess:
         opt, c = sess.run([optimizer, cost], feed_dict={X_train: X_trainSet, Y_train: Y_trainSet})
         cost_array.append(c)
 
-    enePred = sess.run(model, feed_dict={X_train: X_val})
-    print enePred
-    print Y_val
+    enePred = sess.run(model, feed_dict={X_train: X_trainSet})
+    #print np.concatenate((enePred, Y_trainSet), axis=1)
+
+
 
 y = np.array(cost_array)
 plt.plot(y)
