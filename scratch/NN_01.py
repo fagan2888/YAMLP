@@ -3,7 +3,6 @@ import coulomb_matrix
 import extractEnergy
 import tensorflow as tf
 import matplotlib.pyplot as plt
-import divideData
 import importData
 
 # ------------------ ** Extracting the dataset ** ---------
@@ -19,7 +18,7 @@ Y = extractEnergy.getEnergy(fileY)
 
 # This is an array with the percentage of samples that will go in the training, cross-validation and validation set
 dataProportions = np.array([1, 0, 0])
-splitX, splitY = divideData.divideData(X, Y, dataProportions)
+splitX, splitY = importData.splitData(X, Y, dataProportions)
 
 X_trainSet = splitX[0]
 Y_trainSet = splitY[0]
