@@ -1,4 +1,5 @@
 import numpy as np
+import os
 
 def XMLtoCSV(XMLinput):
     """ 
@@ -54,19 +55,18 @@ def XMLtoCSV(XMLinput):
     return None
 
 
-def loadY(YFile):
+def loadY(fileY):
     """
     This function takes as input the CSV file for the Y part of the data and
     returns a numpy array of size (n_samples, 1)
     """
 
-
     # Checking that the input file has the correct .csv extension
-    if YFile[-4:] != ".csv":
+    if fileY[-4:] != ".csv":
         print "Error: the file extension is not .csv"
         quit()
 
-    inputFile = open(YFile, 'r')
+    inputFile = open(fileY, 'r')
 
     y_list = []
     for line in inputFile:
@@ -75,6 +75,7 @@ def loadY(YFile):
     matrixY = np.asarray(y_list).reshape((len(y_list), 1))
 
     inputFile.close()
+    os.remove(fileY)
 
     return matrixY
 
@@ -104,10 +105,49 @@ def loadX(fileX):
         matrixX.append(listLine[0:-1])
 
     inputFile.close()
+    os.remove(fileX)
 
     return matrixX
+
+def splitData(X, Y, percentages):
+    """
+    :param X: This is the X descriptor of the system and it is a np matrix of size (n_samples, n_features)
+    :param Y: This is the Y corresponding to the descriptor. It is a np array of size (n_samples, 1)
+    :param percentages: This is a list of 3 values between 0 and 1 that specify the proportions of data to put in the
+                        training, cross-validation and validation set respectively.
+    :return: It returns two lists of split data, one for the X descriptor and one for the Y values.
+    """
+    np.random.shuffle(X)
+    np.random.shuffle(Y)
+
+    n_samples = Y.shape[0]
+    setSizes = n_samples * percentages
+    setSizes = setSizes.astype(int)
+
+    # This checks that the sum of the number of samples in each set matches the total number of samples
+    # if the number of samples is larger than the total number of samples, some samples are removed from the training
+    # dataset. In the opposite case, they are added to the training dataset.
+    if np.sum(setSizes) > n_samples:
+        setSizes[0] -= (np.sum(setSizes) - n_samples)
+    elif np.sum(setSizes) < n_samples:
+        setSizes[0] += (n_samples - np.sum(setSizes))
+
+    # Taking the first part of X and Y for the training set
+    X_train = X[0:setSizes[0], :]
+    Y_train = Y[0:setSizes[0], :]
+
+    X_crossVal = X[setSizes[0]:(setSizes[1] + setSizes[0]), :]
+    Y_crossVal = Y[setSizes[0]:(setSizes[1] + setSizes[0]), :]
+
+    X_val = X[(setSizes[1] + setSizes[0]):np.sum(setSizes), :]
+    Y_val = Y[(setSizes[1] + setSizes[0]):np.sum(setSizes), :]
+
+    splitX = [X_train, X_crossVal, X_val]
+    splitY = [Y_train, Y_crossVal, Y_val]
+
+    return splitX, splitY
 
 
 if __name__ == "__main__":
     X = loadX("X.csv")
-    print X
+    print len(X)
