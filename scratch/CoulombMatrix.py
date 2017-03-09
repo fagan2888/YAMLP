@@ -47,8 +47,8 @@ class CoulombMatrix():
 
     def generate(self):
         """
-        This function generates the Coulomb Matrix descriptor
-        :return: a numpy array of size (n_samples, n_atoms^2)
+        This function generates the Coulomb Matrix descriptor as a numpy array of size (n_samples, n_atoms^2)
+        :return: None
         """
 
         # This is a coulomb matrix for one particular sample in the dataset

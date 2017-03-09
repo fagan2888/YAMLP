@@ -113,7 +113,7 @@ def splitData(X, Y, percentages):
     """
     :param X: This is the X descriptor of the system and it is a np matrix of size (n_samples, n_features)
     :param Y: This is the Y corresponding to the descriptor. It is a np array of size (n_samples, 1)
-    :param percentages: This is a list of 3 values between 0 and 1 that specify the proportions of data to put in the
+    :param percentages: This is a numpy array of 3 values between 0 and 1 that specify the proportions of data to put in the
                         training, cross-validation and validation set respectively.
     :return: It returns two lists of split data, one for the X descriptor and one for the Y values.
     """
