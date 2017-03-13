@@ -54,6 +54,84 @@ def XMLtoCSV(XMLinput):
 
     return None
 
+def XYZtoCSV(XYZinput):
+    """
+    This function takes as an input the XYZ file that comes out of VR and transforms
+    it into 2 CSV files. The first one is a 'X matrix of size n_samples x (4 x n_atoms) and the second one is a
+    'Y matrix' of size n_samples x 1 which contains the energy of the configurations stored in the X_matrix.
+
+    VERY SPECIFIC FUNCTION - NOT GENERAL!!!
+    """
+
+    # These are the output files
+    fileX = open('X.csv', 'w')
+    fileY = open('Y.csv', 'w')
+
+    # This is the input file
+    inputFile = open(XYZinput, 'r')
+
+    isFirstLine = True
+    n_atoms = 0
+
+    for line in inputFile:
+        if isFirstLine:
+            n_atoms = int(line)
+            isFirstLine = False
+
+        index1 = line.find("Energy")
+        if index1 >= 0:
+            index2 = line.find("(hartree)")
+            energyHa = float(line[index1+8:index2-1])
+            energyKjmol = energyHa * 2625.4988
+            fileY.write(str(energyKjmol))
+            fileY.write("\n")
+
+        if line[0] == "C" or line[0] == "H":
+            line = line.replace("\n", "")
+            line = line.replace("\t",",")
+            fileX.write(line)
+            fileX.write(",")
+
+        if line[0] == "N":
+            line = line.replace("\n", "")
+            line = line.replace("\t", ",")
+            fileX.write(line)
+            fileX.write("\n")
+
+def CCdistance():
+    """
+    This function creates a csv file with the Carbon Carbon distance.
+    :return: None
+    VERY-SPECIFIC FUNCTION. NOT GENERAL
+    """
+    input = open("X.csv", "r")
+    output = open("Z.csv", "w")
+
+    for line in input:
+        lineList = line.split(",")
+        c1 = lineList[1:4]
+        c2 = lineList[21:24]
+
+        for i in range(3):
+            c1[i] = float(c1[i])
+            c2[i] = float(c2[i])
+
+        c1pos = np.asarray(c1)
+        c2pos = np.asarray(c2)
+
+        cc_dist_vec = c2pos - c1pos
+        cc_dist = np.sqrt(np.dot(cc_dist_vec, cc_dist_vec))
+
+        output.write(str(cc_dist))
+        output.write("\n")
+
+    input.close()
+    output.close()
+
+
+
+
+
 
 def loadY(fileY):
     """
@@ -75,7 +153,7 @@ def loadY(fileY):
     matrixY = np.asarray(y_list).reshape((len(y_list), 1))
 
     inputFile.close()
-    os.remove(fileY)
+    #os.remove(fileY)
 
     return matrixY
 
@@ -96,16 +174,18 @@ def loadX(fileX):
 
     for line in inputFile:
 
+        line = line.replace("\n","")
         listLine = line.split(",")
 
         # converting the numbers to float
         for i in range(0,len(listLine)-1,4):
             for j in range(3):
                 listLine[i+j+1] = float(listLine[i+j+1])
-        matrixX.append(listLine[0:-1])
+        matrixX.append(listLine)
+
 
     inputFile.close()
-    os.remove(fileX)
+    #os.remove(fileX)
 
     return matrixX
 
@@ -148,6 +228,7 @@ def splitData(X, Y, percentages):
     return splitX, splitY
 
 
+
+
 if __name__ == "__main__":
-    X = loadX("X.csv")
-    print len(X)
+    XYZtoCSV("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/silvia/trajectory_2017-03-03_02-15-34-pm.xyz")
