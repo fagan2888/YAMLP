@@ -128,11 +128,6 @@ def CCdistance():
     input.close()
     output.close()
 
-
-
-
-
-
 def loadY(fileY):
     """
     This function takes as input the CSV file for the Y part of the data and

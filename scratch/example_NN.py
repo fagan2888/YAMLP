@@ -1,3 +1,9 @@
+"""
+This script shows how to use the current framework for importing data, training it with a very simple neural network and
+plot the results.
+"""
+
+
 import importData
 import CoulombMatrix
 import NN_02
@@ -40,8 +46,8 @@ Y_val = splitY[2]
 
 ### --------------- ** Training the neural network ** -----------------
 
-method = NN_02.NeuralNetwork(n_hidden_layer=20, learning_rate=0.01, iterations=200, eps=0.01)
-method.fit(X_trainSet, reshapeY, True)
+method = NN_02.NeuralNetwork(n_hidden_layer=20, learning_rate=0.01, iterations=50, eps=0.01)
+method.fit(X_trainSet, reshapeY, beta=0.02, batch_size=100, plot=True)
 predictions = method.predict(X_crossVal)
 
 x = Y_crossVal[:, 1]
