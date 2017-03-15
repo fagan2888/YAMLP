@@ -91,6 +91,8 @@ class CoulombMatrix():
             self.coulMatrix[sampleCount, :] = indivCM.flatten()
             sampleCount += 1
 
+        print "Generated the Coulomb Matrix. \n"
+
 
 if __name__ == "__main__":
     importData.XMLtoCSV("/Users/walfits/Repositories/tensorflow/AMP/input1.xml")

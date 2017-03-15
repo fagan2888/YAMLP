@@ -43,23 +43,39 @@ class NeuralNetwork():
 
         # Definition of the model
         a1 = tf.matmul(X_train, tf.transpose(parameters[0])) + parameters[1]  # output of layer1, size = n_sample x n_hidden_layer
+        # a1 = tf.nn.relu(a1)
         model = tf.matmul(a1, tf.transpose(parameters[2])) + parameters[3]  # output of last layer, size = n_samples x 1
 
         return model
 
+    def costReg(self, model, Y_data, parameters, regBeta):
+        """
+        This function calculates the cost function.
+        :param model: This is the tensor with the structure of the neural network
+        :param Y_data: The Y part of the training data (it is a tensorflow place holder)
+        :param parameters: a list of TF variables with the weights.
+        :param regBeta: the regularisation parameter
+        :return: it returns the cost function (TF variable).
+        """
+        cost = tf.reduce_mean(tf.nn.l2_loss((model - Y_data)))  # using the quadratic cost function
+        regulariser = tf.nn.l2_loss(parameters[0]) + tf.nn.l2_loss(parameters[1])
+        cost = tf.reduce_mean(cost + regBeta * regulariser)
 
-    def fit(self, X, Y, plot=False):
+        return cost
+
+    def fit(self, X, Y, beta, batch_size, plot=False):
         """
         This function calculates the weights and biases that better fit the data
         :param X: This is a numpy 2D array of size (n_samples, n_features)
         :param Y: This is a numby 2D array of size (n_samples, 1)
+        :beta: regularisation parameter
+        :batch_size: size of the batch for mini-batch gradient descent
         :plot: a boolean that tells whether to plot or not
         :return: None
         """
 
         self.n_feat = X.shape[1]
         self.n_samples = X.shape[0]
-        batch_size = 50
 
         # Initial set up of the NN
         X_train = tf.placeholder(tf.float32, [None, self.n_feat])
@@ -74,7 +90,8 @@ class NeuralNetwork():
 
         model = self.modelNN(X_train, [weights1, bias1, weights2, bias2])
 
-        cost = tf.reduce_mean(tf.nn.l2_loss((model - Y_train)))  # using the quadratic cost function
+        cost = self.costReg(model, Y_train, [weights1, weights2], beta)
+
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(cost)
 
         # Initialisation of the model
@@ -100,35 +117,51 @@ class NeuralNetwork():
                     avg_cost += c / n_batches
                 cost_array.append(avg_cost)
 
-                if iter % 50 == 0:
-                    print "iteration: " + str(iter)
-
             self.w1 = sess.run(weights1)
             self.b1 = sess.run(bias1)
             self.w2 = sess.run(weights2)
             self.b2 = sess.run(bias2)
 
+            print "The value of the cost with beta=" + str(beta) + " is "
+            print str(cost_array[-1])
+
         if plot:
             import matplotlib.pyplot as plt
             plt.plot(cost_array)
             plt.show()
-            print "The value of the cost on the last iteration is: "
-            print str(cost_array[-1])
 
-
-
+        return cost_array[-1]
 
     def predict(self, X):
 
-        X_train = tf.placeholder(tf.float32, [None, self.n_feat])
+        X_test = tf.placeholder(tf.float32, [None, self.n_feat])
 
         parameters = [tf.Variable(self.w1), tf.Variable(self.b1), tf.Variable(self.w2), tf.Variable(self.b2)]
-        model = self.modelNN(X_train, parameters)
+        model = self.modelNN(X_test, parameters)
 
         init = tf.initialize_all_variables()
 
         with tf.Session() as sess:
             sess.run(init)
-            results = sess.run(model, feed_dict={X_train: X})
+            results = sess.run(model, feed_dict={X_test: X})
 
         return results
+
+    def costTest(self, X, Y):
+        X_test = tf.placeholder(tf.float32, [None, self.n_feat])
+        Y_test = tf.placeholder(tf.float32, [None, 1])
+
+        parameters = [tf.Variable(self.w1), tf.Variable(self.b1), tf.Variable(self.w2), tf.Variable(self.b2)]
+        model = self.modelNN(X_test, parameters)
+        cost = self.costReg(model, Y_test, [parameters[0], parameters[2]], 0)
+
+        init = tf.initialize_all_variables()
+
+        with tf.Session() as sess:
+            sess.run(init)
+            testCost = sess.run(cost, feed_dict={X_test: X, Y_test: Y})
+
+        return testCost
+
+
+
