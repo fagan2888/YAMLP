@@ -93,6 +93,48 @@ class CoulombMatrix():
 
         print "Generated the Coulomb Matrix. \n"
 
+    def normalise_1(self):
+        """
+        This function normalises the Coulomb matrix to make learning more efficient.
+        It uses the maximum and the minimum element in the features.
+        :return: None
+        """
+        # Each element contains the min/max value of each 'feature' present in the Coulomb matrix
+        p_min = np.amin(self.coulMatrix, axis=0)
+        p_max = np.amax(self.coulMatrix, axis=0)
+
+        p_diff = p_max - p_min
+
+        for i in range(len(p_diff)):
+            if p_diff[i] == 0:
+                p_diff[i] += 1e-7
+
+        numerator = 2 * (self.coulMatrix - p_min)
+
+        self.coulMatrix = numerator / p_diff -1
+
+        return None
+
+
+    def normalise_2(self):
+        """
+        This function normalises the Coulomb matrix to make learning more efficient.
+        It uses the std deviation and the mean
+        :return: None
+        """
+        # Each element contains the min/max value of each 'feature' present in the Coulomb matrix
+        p_mean = np.mean(self.coulMatrix, axis=0)
+        p_std = np.std(self.coulMatrix, axis=0)
+
+        for i in range(len(p_std)):
+            if p_std[i] == 0:
+                p_std[i] += 1e-7
+
+        self.coulMatrix = 2 * (self.coulMatrix - p_mean) / p_std
+
+        return None
+
+
 
 if __name__ == "__main__":
     importData.XMLtoCSV("/Users/walfits/Repositories/tensorflow/AMP/input1.xml")
