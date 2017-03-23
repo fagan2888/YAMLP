@@ -109,6 +109,8 @@ def CCdistance():
 
     for line in input:
         lineList = line.split(",")
+
+        # Calculating CC distance
         c1 = lineList[1:4]
         c2 = lineList[21:24]
 
@@ -122,8 +124,35 @@ def CCdistance():
         cc_dist_vec = c2pos - c1pos
         cc_dist = np.sqrt(np.dot(cc_dist_vec, cc_dist_vec))
 
-        output.write(str(cc_dist))
+        # Calculating the shortest NH distance
+        h1 = lineList[5:8]
+        h2 = lineList[9:12]
+        h3 = lineList[13:16]
+        h4 = lineList[17:20]
+        n = lineList[25:]
+
+        for i in range(3):
+            n[i] = float(n[i])
+
+        n = np.asarray(n)
+        hList = [h1, h2, h3, h4]
+        nhDistances = []
+
+        for item in hList:
+            for i in range(3):
+                item[i] = float(item[i])
+
+            item = np.asarray(item)
+            item = n - item
+            nhDist = np.sqrt(np.dot(item, item))
+            nhDistances.append(nhDist)
+
+        min_dist = min(nhDistances)
+
+        output.write(str(cc_dist) + "," + str(min_dist))
         output.write("\n")
+
+
 
     input.close()
     output.close()
@@ -169,7 +198,7 @@ def loadX(fileX):
 
     for line in inputFile:
 
-        line = line.replace("\n","")
+        line = line.replace(",\n","")
         listLine = line.split(",")
 
         # converting the numbers to float
@@ -183,6 +212,36 @@ def loadX(fileX):
     #os.remove(fileX)
 
     return matrixX
+
+def loadZ(fileZ):
+    """
+        This function takes as input the CSV file for the Y and Z part of the data and
+        returns a numpy array of size (n_samples, n_features)
+        """
+
+    # Checking that the input file has the correct .csv extension
+    if fileZ[-4:] != ".csv":
+        print "Error: the file extension is not .csv"
+        quit()
+
+    inputFile = open(fileZ, 'r')
+
+    y_list = []
+    z_list = []
+    for line in inputFile:
+        line = line.replace("\n", "")
+        listLine = line.split(",")
+        y_list.append(float(listLine[0]))
+        z_list.append(float(listLine[1]))
+
+    matrixY = np.asarray(y_list).reshape((len(y_list), 1))
+    matrixZ = np.asarray(z_list).reshape((len(z_list), 1))
+
+    inputFile.close()
+    # os.remove(fileY)
+
+    return matrixY, matrixZ
+
 
 def splitData(X, Y, percentages):
     """
@@ -222,8 +281,59 @@ def splitData(X, Y, percentages):
 
     return splitX, splitY
 
+def interpolData(X, Y, numPoints):
+
+    addSamplesX = []
+    addSamplesY = []
+    addSamplesAng = []
+
+    for i in range(0,len(X)-1):
+
+        newSamp = [[] for _ in range(numPoints)]
+
+        # Interpolate the energies
+        e1 = Y[i,0]
+        e2 = Y[i+1,0]
+        a1 = Y[i,1]
+        a2 = Y[i+1,1]
+
+        newEne = np.arange(e1, e2, ((e2 - e1) / numPoints))
+        newAng = np.arange(a1, a2, ((a2 - a1) / numPoints))
+
+        # Go through the coordinates the atoms one by one in the sample
+        for k in range(0, len(X[i]), 4):
+
+            # X, y and z value of the interpolated coordinates
+            newX = np.arange(X[i][k+1], X[i + 1][k+1], ((X[i + 1][k+1] - X[i][k+1]) / numPoints))
+            newY = np.arange(X[i][k+2], X[i + 1][k+2], ((X[i + 1][k+2] - X[i][k+2]) / numPoints))
+            newZ = np.arange(X[i][k+3], X[i + 1][k+3], ((X[i + 1][k+3] - X[i][k+3]) / numPoints))
+
+            for j in range(numPoints):
+                newSamp[j].append(X[i][k])
+                newSamp[j].append(newX[j])
+                newSamp[j].append(newY[j])
+                newSamp[j].append(newZ[j])
+
+        for l in range(numPoints):
+            addSamplesX.append(newSamp[l])
+            addSamplesY.append(newEne[l])
+            addSamplesAng.append(newAng[l])
+
+    finalEn = (np.asarray(addSamplesY)).reshape((len(addSamplesY), 1))
+    finalAng = (np.asarray(addSamplesAng)).reshape((len(addSamplesAng), 1))
+    finalY = np.concatenate((finalEn, finalAng), axis=1)
+
+    return addSamplesX, finalY
+
+
+
 
 
 
 if __name__ == "__main__":
-    XYZtoCSV("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/silvia/trajectory_2017-03-03_02-15-34-pm.xyz")
+    XMLtoCSV("/Users/walfits/Repositories/tensorflow/AMP/input1.xml")
+
+    X_total = loadX("X.csv")
+    Y_total = loadY("Y.csv")
+
+    interpolData(X_total, Y_total, 10)
