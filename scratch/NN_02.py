@@ -3,7 +3,7 @@ import tensorflow as tf
 
 class NeuralNetwork():
     """
-    Class implementing an artificial neural network.
+    Class implementing an artificial neural network with one hidden layer (with a variable number of units).
 
     """
 
@@ -43,7 +43,7 @@ class NeuralNetwork():
 
         # Definition of the model
         a1 = tf.matmul(X_train, tf.transpose(parameters[0])) + parameters[1]  # output of layer1, size = n_sample x n_hidden_layer
-        # a1 = tf.nn.relu(a1)
+        a1 = tf.nn.sigmoid(a1)
         model = tf.matmul(a1, tf.transpose(parameters[2])) + parameters[3]  # output of last layer, size = n_samples x 1
 
         return model
@@ -84,9 +84,9 @@ class NeuralNetwork():
         randIn = tf.constant(self.eps, dtype=tf.float32)  # This sets the range of weights/biases initial values
 
         weights1 = tf.Variable(tf.random_normal([self.n_hidden_layer, self.n_feat]) * 2 * randIn - randIn)
-        bias1 = tf.Variable(tf.random_normal([self.n_hidden_layer]) * 2 * randIn - randIn)
+        bias1 = tf.Variable(tf.zeros([self.n_hidden_layer]))
         weights2 = tf.Variable(tf.random_normal([1, self.n_hidden_layer]) * 2 * randIn - randIn)
-        bias2 = tf.Variable(tf.random_normal([1]) * 2 * randIn - randIn)
+        bias2 = tf.Variable(tf.zeros([1]))
 
         model = self.modelNN(X_train, [weights1, bias1, weights2, bias2])
 
@@ -130,7 +130,7 @@ class NeuralNetwork():
             plt.plot(cost_array)
             plt.show()
 
-        return cost_array[-1]
+        return None
 
     def predict(self, X):
 
