@@ -93,6 +93,23 @@ class CoulombMatrix():
 
         print "Generated the Coulomb Matrix. \n"
 
+    def trim(self):
+        """
+        This function looks through the Coulomb matrix that has been generated and if there are columns where the data
+        is the same in all samples, then that column is removed.
+        :return: None
+        """
+        useless_col = []
+
+        for i in range(self.n_atoms**2):
+            p_std = np.std(self.coulMatrix[:,i])
+            if p_std <= 1e-13:
+                useless_col.append(i)
+
+        self.coulMatrix = np.delete(self.coulMatrix,obj=useless_col,axis=1)
+
+        return None
+
     def normalise_1(self):
         """
         This function normalises the Coulomb matrix to make learning more efficient.
@@ -115,7 +132,6 @@ class CoulombMatrix():
 
         return None
 
-
     def normalise_2(self):
         """
         This function normalises the Coulomb matrix to make learning more efficient.
@@ -126,11 +142,12 @@ class CoulombMatrix():
         p_mean = np.mean(self.coulMatrix, axis=0)
         p_std = np.std(self.coulMatrix, axis=0)
 
-        for i in range(len(p_std)):
-            if p_std[i] == 0:
-                p_std[i] += 1e-7
-
         self.coulMatrix = 2 * (self.coulMatrix - p_mean) / p_std
+
+        p_mean = np.mean(self.coulMatrix, axis=0)
+        p_std = np.std(self.coulMatrix, axis=0)
+
+
 
         return None
 
