@@ -43,7 +43,7 @@ class NeuralNetwork():
 
         # Definition of the model
         a1 = tf.matmul(X_train, tf.transpose(parameters[0])) + parameters[1]  # output of layer1, size = n_sample x n_hidden_layer
-        a1 = tf.nn.sigmoid(a1)
+        a1 = tf.nn.tanh(a1)
         model = tf.matmul(a1, tf.transpose(parameters[2])) + parameters[3]  # output of last layer, size = n_samples x 1
 
         return model
@@ -73,6 +73,7 @@ class NeuralNetwork():
         :plot: a boolean that tells whether to plot or not
         :return: None
         """
+        print "Starting the fitting. \n"
 
         self.n_feat = X.shape[1]
         self.n_samples = X.shape[0]

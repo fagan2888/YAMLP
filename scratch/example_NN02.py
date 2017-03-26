@@ -22,12 +22,13 @@ Y_total = np.concatenate((Y_total, angles), axis=1)
 
 ### --------------- ** Interpolating ** -----------------------
 
-# X_total, Y_total = importData.interpolData(X_total, Y_total, 10)
+# X_total, Y_total = importData.interpolData(X_total, Y_total, 2)
 
 ### --------------- ** Turning cartesian coordinates into coulomb matrix ** -----------------
 
 descriptor = CoulombMatrix.CoulombMatrix(matrixX=X_total)
 descriptor.generate()
+descriptor.trim()
 descriptor.normalise_2()
 
 ### --------------- ** Splitting the data into training, cross-validation and validation set ** -----------------
@@ -48,9 +49,19 @@ Y_val = splitY[2]
 
 ### --------------- ** Training the neural network ** -----------------
 
-method = NN_02.NeuralNetwork(n_hidden_layer=50, learning_rate=0.0005, iterations=50000, eps=0.001)
+#########################################################
+#   Good parameters for the small training set:         #
+#   n_hidden_layer=50                                   #
+#   learning_rate=0.0005                                #
+#   iterations=50000                                    #
+#   eps=0.001                                           #
+#   beta=0                                              #
+#   batch_size=10                                       #
+#########################################################
 
-method.fit(X_trainSet, reshapeY, beta=0, batch_size=10, plot=True)
+method = NN_02.NeuralNetwork(n_hidden_layer=10, learning_rate=0.0005, iterations=30000, eps=0.001)
+
+method.fit(X_trainSet, reshapeY, beta=0, batch_size=2, plot=True)
 
 predictions = method.predict(X_trainSet)
 
