@@ -144,11 +144,23 @@ class CoulombMatrix():
 
         self.coulMatrix = 2 * (self.coulMatrix - p_mean) / p_std
 
+        return None
+
+    def normalise_3(self):
+        """
+        This function normalises the Coulomb matrix to make learning more efficient.
+        It uses the std deviation and the mean
+        :return: None
+        """
+        # Each element contains the min/max value of each 'feature' present in the Coulomb matrix
         p_mean = np.mean(self.coulMatrix, axis=0)
         p_std = np.std(self.coulMatrix, axis=0)
 
+        for i in range(len(p_std)):
+            if p_std[i] <= 1e-15:
+                p_std[i] = p_std[i] + 1e-13
 
-
+        self.coulMatrix = 2 * (self.coulMatrix - p_mean) / p_std
         return None
 
 
