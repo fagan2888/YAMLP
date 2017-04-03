@@ -22,14 +22,22 @@ Y_total = np.concatenate((Y_total, angles), axis=1)
 
 ### --------------- ** Interpolating ** -----------------------
 
-# X_total, Y_total = importData.interpolData(X_total, Y_total, 2)
+X_test, Y_test = importData.interpolData(X_total, Y_total, 1)
 
 ### --------------- ** Turning cartesian coordinates into coulomb matrix ** -----------------
 
 descriptor = CoulombMatrix.CoulombMatrix(matrixX=X_total)
 descriptor.generate()
-descriptor.trim()
-descriptor.normalise_2()
+# descriptor.trim()
+descriptor.normalise_3()
+
+# Descriptor for the test set of interpolated data
+
+test_X = CoulombMatrix.CoulombMatrix(matrixX=X_test)
+test_X.generate()
+# test_X.trim()
+test_X.normalise_3()
+reshapeYtest = np.reshape(Y_test[:,0], (Y_test[:,0].shape[0], 1))
 
 ### --------------- ** Splitting the data into training, cross-validation and validation set ** -----------------
 
@@ -59,17 +67,44 @@ Y_val = splitY[2]
 #   batch_size=10                                       #
 #########################################################
 
-method = NN_02.NeuralNetwork(n_hidden_layer=10, learning_rate=0.0005, iterations=30000, eps=0.001)
+points = 1
+iterations=70000
 
-method.fit(X_trainSet, reshapeY, beta=0, batch_size=2, plot=True)
+neuralNet = NN_02.NeuralNetwork(n_hidden_layer=50, learning_rate=0.0005, iterations=iterations, eps=0.001)
 
-predictions = method.predict(X_trainSet)
+
+for _ in range(points):
+    neuralNet.fit(X_trainSet, reshapeY, beta=0, batch_size=10, plot=True)
+    # neuralNet.costTest(X_test, reshapeYcross)
+
+### --------------- ** Plotting learning curves ** -----------------
+
+# learnCurv = plt.figure(figsize=(7,7))
+# ax = learnCurv.add_subplot(111)
+#
+# x_training = range(0,points*iterations)
+# y_training = neuralNet.trainCost
+# x_cross = range(0,points*iterations,iterations)
+# y_cross = neuralNet.trainCost
+#
+# ax.scatter(x_training, y_training, label = "training set cost", marker=".", c="r")
+# ax.scatter(x_cross, y_cross, label = "cross set cost", marker=".", c='b')
+# ax.set_xlabel('iteration')
+# ax.set_ylabel('cost')
+# ax.legend()
+#
+# plt.show()
+
+
+### --------------- ** Plotting the data set and predictions ** -----------------
+
+predictions = neuralNet.predict(test_X.coulMatrix)
 
 fig1 = plt.figure(figsize=(7,7))
 ax1 = fig1.add_subplot(111)
 
-x1 = Y_trainSet[:,1]
-y_data = Y_trainSet[:,0]
+x1 = Y_test[:,1]
+y_data = Y_test[:,0]
 y_pred = predictions[:,0]
 
 ax1.scatter(x1, y_data, label = "actual data", marker=".", c="r")
