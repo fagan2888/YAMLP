@@ -29,6 +29,8 @@ Y_total = np.concatenate((Y_total, Z_total1, Z_total2), axis=1)
 
 descriptor = CoulombMatrix.CoulombMatrix(matrixX=X_total)
 descriptor.generate()
+descriptor.trim()
+descriptor.normalise_2()
 
 ### --------------- ** Splitting the data into training, cross-validation and validation set ** -----------------
 

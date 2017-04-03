@@ -242,7 +242,6 @@ def loadZ(fileZ):
 
     return matrixY, matrixZ
 
-
 def splitData(X, Y, percentages):
     """
     :param X: This is the X descriptor of the system and it is a np matrix of size (n_samples, n_features)
@@ -282,6 +281,15 @@ def splitData(X, Y, percentages):
     return splitX, splitY
 
 def interpolData(X, Y, numPoints):
+    """
+    This function takes the X matrix ( list of lists of size (n_samples, n_features) - labels of atoms and their
+    coordinate ) and for each atom coordinate of two samples it creates samples that have coordinates in between
+    the coordinates of the two initial atoms. The same is done for the energy.
+    :param X: list of lists of size (n_samples, n_features) - labels of atoms and their coordinate )
+    :param Y: numpy array of size (n_samples, 1)
+    :param numPoints: Number of samples to create via interpolation. numPoints = 10 creates 8 new points...
+    :return: it returns a new extended X and Y.
+    """
 
     addSamplesX = []
     addSamplesY = []
@@ -291,7 +299,7 @@ def interpolData(X, Y, numPoints):
 
         newSamp = [[] for _ in range(numPoints)]
 
-        # Interpolate the energies
+        # Interpolate the energies and angles
         e1 = Y[i,0]
         e2 = Y[i+1,0]
         a1 = Y[i,1]
@@ -303,17 +311,19 @@ def interpolData(X, Y, numPoints):
         # Go through the coordinates the atoms one by one in the sample
         for k in range(0, len(X[i]), 4):
 
-            # X, y and z value of the interpolated coordinates
-            newX = np.arange(X[i][k+1], X[i + 1][k+1], ((X[i + 1][k+1] - X[i][k+1]) / numPoints))
-            newY = np.arange(X[i][k+2], X[i + 1][k+2], ((X[i + 1][k+2] - X[i][k+2]) / numPoints))
-            newZ = np.arange(X[i][k+3], X[i + 1][k+3], ((X[i + 1][k+3] - X[i][k+3]) / numPoints))
+            # X, y and z values of the interpolated coordinates (including the initial and end point)
+            newX = np.arange(X[i][k+1], X[i + 1][k+1], ((X[i + 1][k+1] - X[i][k+1]) / (numPoints+2)))
+            newY = np.arange(X[i][k+2], X[i + 1][k+2], ((X[i + 1][k+2] - X[i][k+2]) / (numPoints+2)))
+            newZ = np.arange(X[i][k+3], X[i + 1][k+3], ((X[i + 1][k+3] - X[i][k+3]) / (numPoints+2)))
 
+            # Arranging the data in the 'atom-label x y z' format one atom at a time
             for j in range(numPoints):
                 newSamp[j].append(X[i][k])
-                newSamp[j].append(newX[j])
-                newSamp[j].append(newY[j])
-                newSamp[j].append(newZ[j])
+                newSamp[j].append(newX[j+1])
+                newSamp[j].append(newY[j+1])
+                newSamp[j].append(newZ[j+1])
 
+        # Adding each formatted list into the final list containing all the interpolated points
         for l in range(numPoints):
             addSamplesX.append(newSamp[l])
             addSamplesY.append(newEne[l])
@@ -336,4 +346,4 @@ if __name__ == "__main__":
     X_total = loadX("X.csv")
     Y_total = loadY("Y.csv")
 
-    interpolData(X_total, Y_total, 10)
+    interpolData(X_total, Y_total, 2)
