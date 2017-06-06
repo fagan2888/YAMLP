@@ -90,9 +90,10 @@ class NeuralNetwork():
         randIn = tf.constant(self.eps, dtype=tf.float32)  # This sets the range of weights/biases initial values
 
         if self.initialisation:
-            weights1 = tf.Variable(tf.random_normal([self.n_hidden_layer, self.n_feat]) * 2 * randIn - randIn)
+            # weights1 = tf.Variable(tf.random_normal([self.n_hidden_layer, self.n_feat]) * 2 * randIn - randIn)
+            weights1 = tf.Variable(tf.random_normal([self.n_hidden_layer, self.n_feat], mean=0.0, stddev=(1/np.sqrt(self.n_feat)) ))
             bias1 = tf.Variable(tf.zeros([self.n_hidden_layer]))
-            weights2 = tf.Variable(tf.random_normal([1, self.n_hidden_layer]) * 2 * randIn - randIn)
+            weights2 = tf.Variable(tf.random_normal([1, self.n_hidden_layer], mean=0.0, stddev=(1/np.sqrt(self.n_hidden_layer)) ))
             bias2 = tf.Variable(tf.zeros([1]))
             parameters = [weights1, bias1, weights2, bias2]
             self.initialisation = False
@@ -101,7 +102,6 @@ class NeuralNetwork():
 
         model = self.modelNN(X_train, parameters)
         cost = self.costReg(model, Y_train, [parameters[0], parameters[2]], beta)
-
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate).minimize(cost)
 
         # Initialisation of the model
@@ -145,7 +145,6 @@ class NeuralNetwork():
         :param X: numpy array of size (n_samples, n_features)
         :return: numpy 2D array of size (n_samples, 1)
         """
-
         X_test = tf.placeholder(tf.float32, [None, self.n_feat])
 
         parameters = [tf.Variable(self.w1), tf.Variable(self.b1), tf.Variable(self.w2), tf.Variable(self.b2)]
@@ -165,9 +164,11 @@ class NeuralNetwork():
         during the fitting it can be used to plot learning curves.
         :param X: numpy array of size (n_samples, n_features)
         :param Y: numpy array of size (n_samples, 1)
-        :return:
+        :return: the cost
         """
-        X_test = tf.placeholder(tf.float32, [None, self.n_feat])
+        n_feat = X.shape[1]
+
+        X_test = tf.placeholder(tf.float32, [None, n_feat])
         Y_test = tf.placeholder(tf.float32, [None, 1])
 
         parameters = [tf.Variable(self.w1), tf.Variable(self.b1), tf.Variable(self.w2), tf.Variable(self.b2)]

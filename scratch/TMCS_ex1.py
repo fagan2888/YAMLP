@@ -68,7 +68,7 @@ plt.show()
 
 y_pred = np.reshape(prediction, (len(x)))
 
-fig1 = plt.figure(figsize=(10,10))
+fig1 = plt.figure(figsize=(7,7))
 ax1 = fig1.add_subplot(111)
 ax2 = fig1.add_subplot(211)
 

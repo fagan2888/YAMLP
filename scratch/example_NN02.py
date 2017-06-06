@@ -22,7 +22,7 @@ Y_total = np.concatenate((Y_total, angles), axis=1)
 
 ### --------------- ** Interpolating ** -----------------------
 
-X_test, Y_test = importData.interpolData(X_total, Y_total, 1)
+# X_test, Y_test = importData.interpolData(X_total, Y_total, 1)
 
 ### --------------- ** Turning cartesian coordinates into coulomb matrix ** -----------------
 
@@ -33,11 +33,11 @@ descriptor.normalise_3()
 
 # Descriptor for the test set of interpolated data
 
-test_X = CoulombMatrix.CoulombMatrix(matrixX=X_test)
-test_X.generate()
+# test_X = CoulombMatrix.CoulombMatrix(matrixX=X_test)
+# test_X.generate()
 # test_X.trim()
-test_X.normalise_3()
-reshapeYtest = np.reshape(Y_test[:,0], (Y_test[:,0].shape[0], 1))
+# test_X.normalise_3()
+# reshapeYtest = np.reshape(Y_test[:,0], (Y_test[:,0].shape[0], 1))
 
 ### --------------- ** Splitting the data into training, cross-validation and validation set ** -----------------
 
@@ -67,15 +67,15 @@ Y_val = splitY[2]
 #   batch_size=10                                       #
 #########################################################
 
-points = 1
-iterations=70000
+points = 7
+iterations=5000
 
-neuralNet = NN_02.NeuralNetwork(n_hidden_layer=50, learning_rate=0.0005, iterations=iterations, eps=0.001)
+neuralNet = NN_02.NeuralNetwork(n_hidden_layer=50, learning_rate=5, iterations=iterations, eps=0.001)
 
 
 for _ in range(points):
-    neuralNet.fit(X_trainSet, reshapeY, beta=0, batch_size=10, plot=True)
-    # neuralNet.costTest(X_test, reshapeYcross)
+    neuralNet.fit(X_trainSet, reshapeY, beta=0, batch_size=10, plot=False)
+
 
 ### --------------- ** Plotting learning curves ** -----------------
 
@@ -98,24 +98,63 @@ for _ in range(points):
 
 ### --------------- ** Plotting the data set and predictions ** -----------------
 
-predictions = neuralNet.predict(test_X.coulMatrix)
+# f, (ax1, ax2) = plt.subplots(1, 2, sharex=True)
+#
+# predictions1 = neuralNet.predict(test_X.coulMatrix)
+# testCost = neuralNet.costTest(test_X.coulMatrix, reshapeYtest)
+# print "The cost for the test set is " + str(testCost) + "\n"
 
-fig1 = plt.figure(figsize=(7,7))
-ax1 = fig1.add_subplot(111)
+predictions1 = neuralNet.predict(X_trainSet)
+testCost = neuralNet.costTest(X_trainSet, reshapeY)
+print "The cost for the test set is " + str(testCost) + "\n"
 
-x1 = Y_test[:,1]
-y_data = Y_test[:,0]
-y_pred = predictions[:,0]
+x1 = Y_trainSet[:,1]
+y_data1 = Y_trainSet[:,0]
+y_pred1 =predictions1[:,0]
+#
+#
+# predictions2 = neuralNet.predict(X_trainSet)
+# x2 = Y_trainSet[:,1]
+# y_data2 = Y_trainSet[:,0]
+# y_pred2 = predictions2[:,0]
+#
+# ax1.scatter(x1, y_data1, label = "actual data", marker="o", c="r")
+# ax1.scatter(x1, y_pred1, label = "predictions", marker="o", c='b')
+#
+# ax2.scatter(x2, y_data2, label = "actual data", marker="o", c="r")
+# ax2.scatter(x2, y_pred2, label = "predictions", marker="o", c='b')
+#
+# ax1.set_xlabel('CHC angle')
+# ax1.set_ylabel('Energy')
+#
+#
+# plt.show()
 
-ax1.scatter(x1, y_data, label = "actual data", marker=".", c="r")
-ax1.scatter(x1, y_pred, label = "predictions", marker=".", c='b')
 
-ax1.set_xlabel('CHC angle')
-ax1.set_ylabel('Energy')
+#  Ad hoc
+
+# fig1, ax = plt.subplots()
+# ax.scatter(x2, y_data2, label = "CAS-SCF", marker="o", c="r")
+# ax.scatter(x2, y_pred2, label = "NN", marker="o", c='b')
+# ax.set_xlabel('CHC angle')
+# ax.set_ylabel('Energy (kJ/mol)')
+# ax.legend()
+
+fig2, ax2 = plt.subplots(figsize=(8,7))
+ax2.scatter(x1, y_data1, label = "CAS-SCF", marker="o", c="r")
+ax2.scatter(x1, y_pred1, label = "NN", marker="o", c='b')
+ax2.set_xlabel('CHC angle')
+ax2.set_ylabel('Energy (kJ/mol)')
+ax2.legend()
+
+fig3, ax3 = plt.subplots(figsize=(8,7))
+ax3.scatter(y_data1, y_pred1, label = "CAS-SCF", marker="o", c="r")
+ax3.set_xlabel('CAS-SCF Energy (kJ/mol)')
+ax3.set_ylabel('NN Energy (kJ/mol)')
+
+
 
 
 plt.show()
-
-
 
 

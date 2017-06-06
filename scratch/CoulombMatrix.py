@@ -149,7 +149,8 @@ class CoulombMatrix():
     def normalise_3(self):
         """
         This function normalises the Coulomb matrix to make learning more efficient.
-        It uses the std deviation and the mean
+        It uses the std deviation (corrected for when the std is zero) and the mean.
+        It is used insted of normalise_2 when the data has not been trimmed.
         :return: None
         """
         # Each element contains the min/max value of each 'feature' present in the Coulomb matrix
@@ -158,7 +159,7 @@ class CoulombMatrix():
 
         for i in range(len(p_std)):
             if p_std[i] <= 1e-15:
-                p_std[i] = p_std[i] + 1e-13
+                p_std[i] = 1
 
         self.coulMatrix = 2 * (self.coulMatrix - p_mean) / p_std
         return None
@@ -166,16 +167,16 @@ class CoulombMatrix():
 
 
 if __name__ == "__main__":
-    importData.XMLtoCSV("/Users/walfits/Repositories/tensorflow/AMP/input1.xml")
+    # importData.XMLtoCSV("/Users/walfits/Repositories/tensorflow/AMP/input1.xml")
     X = importData.loadX("X.csv")
     cm = CoulombMatrix(matrixX=X)
     cm.generate()
 
-    # Generating a plot of matrix
-    import matplotlib.pyplot as plt
-    fig = plt.figure(figsize=(7, 7))
-    ax = fig.add_subplot(111)
-    anExample = np.reshape(cm.coulMatrix[3,:], (7,7))
-    # plt.matshow(cm.coulMatrix, fignum=False)
-    plt.matshow(anExample, fignum=False)
-    plt.show()
+    # # Generating a plot of matrix
+    # import matplotlib.pyplot as plt
+    # fig = plt.figure(figsize=(7, 7))
+    # ax = fig.add_subplot(111)
+    # anExample = np.reshape(cm.coulMatrix[3,:], (7,7))
+    # # plt.matshow(cm.coulMatrix, fignum=False)
+    # plt.matshow(anExample, fignum=False)
+    # plt.show()
