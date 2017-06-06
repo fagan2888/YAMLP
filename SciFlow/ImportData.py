@@ -253,3 +253,56 @@ def loadY(fileY):
 
     inputFile.close()
     return matrixY
+
+def loadPd(fileName):
+    """
+    This function takes a .csv file that contains on each line a different configuration of the system in the format
+    "C,0.1,0.1,0.1,H,0.2,0.2,0.2..." and at the end of each line there are two values of the energies. It returns a
+    list of lists with the configurations of the system and a numpy array of size (N_samples, 1) with the difference of
+    the two values of the energies.
+
+    :param fileX: The .csv file containing the geometries and the energies at 2 levels of theory for the system
+    :return: a list of lists with characters and floats. An example is shown below for 3 samples of a di hydrogen
+            molecule:
+        [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]
+        and a numpy array of energy differences of size (n_samples, 1)
+    """
+    if fileName[-4:] != ".csv":
+        print "Error: the file extension is not .csv"
+        quit()
+
+    inputFile = open(fileName, 'r')
+
+    # Creating a matrix with the raw data:
+    rawData = []
+    matrixX = []
+    matrixY = []
+
+    isFirstLine = True
+
+    for line in inputFile:
+        if isFirstLine == True:
+            line = inputFile.next()
+            isFirstLine = False
+
+        line = line.replace("\n","")
+        listLine = line.split(",")
+
+        ene = listLine[-2:]
+        geom = listLine[1:-2]
+
+        for i in range(len(ene)):
+            ene[i] = float(ene[i])
+
+        eneDiff = ene[0] - ene[1]
+        matrixY.append(eneDiff)
+
+        for i in range(0,len(geom)-1,4):
+            for j in range(3):
+                geom[i+j+1] = float(geom[i+j+1])
+        matrixX.append(geom)
+
+    arrayY = np.asarray(matrixY).reshape((len(matrixY), 1))
+    inputFile.close()
+
+    return matrixX, arrayY
