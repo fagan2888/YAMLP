@@ -10,6 +10,8 @@ from sklearn.utils.multiclass import unique_labels
 from sklearn.metrics import euclidean_distances
 import tensorflow as tf
 import matplotlib.pyplot as plt
+from sklearn.metrics import r2_score
+
 
 
 class MLPRegFlow(BaseEstimator, ClassifierMixin):
@@ -52,13 +54,15 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         Fit the model to data matrix X and target y.
         :param X: {array-like, sparse matrix}, shape (n_samples, n_features) - The input data.
         :param y: array-like, shape (n_samples,) - The target values
-        :return: returns a trained single layer neural network model
+        :return: None
         """
+
+        print "Starting the fitting process ... \n"
 
         # Check that X and y have correct shape
         X, y = check_X_y(X, y)
         # Modification of the y data, because tensorflow wants a column vector, while scikit learn uses a row vector
-        y = np.reshape(y, (len(x),1))
+        y = np.reshape(y, (len(y),1))
 
         # Check that the architecture has only 1 hidden layer
         if len(self.hidden_layer_sizes) != 1:
@@ -74,7 +78,6 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         # Initial set up of the NN
         X_train = tf.placeholder(tf.float32, [None, self.n_feat])
         Y_train = tf.placeholder(tf.float32, [None, 1])
-        print self.hidden_layer_sizes[0]
 
         # This part either randomly initialises the weights and biases or restarts training from wherever it was stopped
         if self.alreadyInitialised == False:
@@ -111,6 +114,8 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                     opt, c = sess.run([optimizer, cost], feed_dict={X_train: batch_x, Y_train: batch_y})
                     avg_cost += c / n_batches
                 self.trainCost.append(avg_cost)
+                if iter % 100 == 0:
+                    print "Completed " + str(iter) + " iterations. \n"
 
             self.w1 = sess.run(parameters[0])
             self.b1 = sess.run(parameters[1])
@@ -127,7 +132,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
         # Definition of the model
         a1 = tf.matmul(X, tf.transpose(parameters[0])) + parameters[1]  # output of layer1, size = n_sample x n_hidden_layer
-        a1 = tf.nn.sigmoid(a1)
+        a1 = tf.nn.tanh(a1)
         model = tf.matmul(a1, tf.transpose(parameters[2])) + parameters[3]  # output of last layer, size = n_samples x 1
 
         return model
@@ -186,9 +191,11 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
     def predict(self, X):
         """
         This function uses the X data and plugs it into the model and then returns the predicted y
-        :param X:
-        :return:
+        :param X: numpy array of size (n_samples, n_features)
+        :return: numpy array of size (n_samples,)
         """
+        print "Starting the predictions. \n"
+
         if self.checkIsFitted():
             check_array(X)
 
@@ -202,11 +209,26 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             with tf.Session() as sess:
                 sess.run(init)
                 predictions = sess.run(model, feed_dict={X_test: X})
+                predictions = np.reshape(predictions,(predictions.shape[0],))
 
             return predictions
         else:
             return
 
+    def score(self, X, y, sample_weight=None):
+        """
+        Returns the mean accuracy on the given test data and labels. It calculates the R^2 value.
+        :param X: The x values - numpy array of shape (N_samples, n_features)
+        :param y: The true values for X - numpy array of shape (N_samples,)
+        :param sample_weight: sample_weight : array-like, shape = [n_samples], optional
+            Sample weights (not sure what this is, but i need it for inheritance from the BaseEstimator)
+        :return: float - Mean accuracy of self.predict(X) wrt. y.
+        """
+        # print "Scoring the function. \n"
+
+        y_pred = self.predict(X)
+        r2 = r2_score(y, y_pred)
+        return r2
 
 
 # This example tests the module on fitting a simple quadratic function and then plots the results
@@ -217,7 +239,7 @@ if __name__ == "__main__":
 
     x = np.arange(-2.0, 2.0, 0.1)
     X = np.reshape(x, (len(x), 1))
-    y = np.reshape(X ** 2, (len(x),))
+    y = np.reshape(X ** 3, (len(x),))
 
     estimator.fit(X, y)
     estimator.plotTrainCost()
