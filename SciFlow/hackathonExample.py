@@ -1,3 +1,8 @@
+"""
+This script uses the new estimator written in tensorflow to fit the data that was used in the hackathon. The
+hyperparameters are chosen by me through my knowledge of what worked well in the hackathon.
+"""
+
 import CoulombMatrix
 import ImportData
 import NNFlow
