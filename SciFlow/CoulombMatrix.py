@@ -39,6 +39,8 @@ class CoulombMatrix():
         self.coulMatrix = np.zeros((self.n_samples, self.n_atoms**2))
         self.__generateCM()
 
+        print "Initialised the Coulomb matrix. \n"
+
     def getCM(self):
         return self.coulMatrix
 
@@ -91,6 +93,8 @@ class CoulombMatrix():
             tempES, tempDiag = LA.eig(tempCM)
             self.coulES[i,:] = tempES
 
+        print "Generated the Eigen spectrum descriptor. \n"
+
         return self.coulES
 
     def generateSCM(self):
@@ -117,9 +121,11 @@ class CoulombMatrix():
 
         return coulS
 
-    def generateRSCM(self, numRep=5):
+    def generateRSCM(self, y_data, numRep=5):
         """
-        This function creates the Randomy sorted Coulomb matrix starting from the Coulomb matrix.
+        This function creates the Randomy sorted Coulomb matrix starting from the Coulomb matrix and it transforms the
+        y part of the data so that there are numRep copies of each energy.
+        :y_data: a numpy array of energy values of size (N_samples,)
         :param numRep: number of randomly sorted matrices to be generated per sample - int
         :return: the randomly sorted CM - numpy array of size (N_samples*numRep, n_atoms^2)
         """
@@ -133,6 +139,7 @@ class CoulombMatrix():
 
         counter = 0
         coulRS = np.zeros((self.n_samples*numRep, self.n_atoms ** 2))
+        y_bigdata = np.zeros((self.n_samples*numRep,))
 
         for i in range(self.n_samples):
             tempCM = np.reshape(self.coulMatrix[i, :], (self.n_atoms, self.n_atoms))
@@ -156,7 +163,10 @@ class CoulombMatrix():
                 coulRS[counter, :] = tempRandCM.flatten()
                 counter = counter + 1
 
-        return coulRS
+            # Copying multiple values of the energies
+            y_bigdata[numRep*i:numRep*i+numRep] = y_data[i]
+
+        return coulRS, y_bigdata
 
 
 

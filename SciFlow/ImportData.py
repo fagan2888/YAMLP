@@ -265,7 +265,7 @@ def loadPd(fileName):
     :return: a list of lists with characters and floats. An example is shown below for 3 samples of a di hydrogen
             molecule:
         [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]
-        and a numpy array of energy differences of size (n_samples, 1)
+        and a list of energy differences of size (n_samples,)
     """
     if fileName[-4:] != ".csv":
         print "Error: the file extension is not .csv"
@@ -302,7 +302,7 @@ def loadPd(fileName):
                 geom[i+j+1] = float(geom[i+j+1])
         matrixX.append(geom)
 
-    arrayY = np.asarray(matrixY).reshape((len(matrixY), 1))
+    matrixY = np.asarray(matrixY)
     inputFile.close()
 
-    return matrixX, arrayY
+    return matrixX, matrixY
