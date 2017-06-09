@@ -109,11 +109,12 @@ def XYZtoCSV(XYZinput):
 
 def extractMolpro(MolproInput):
     """
-    This function takes a Molpro .out file and returns the geometry and the energy
+    This function takes a Molpro .out file and returns the geometry, the energy and the partial charges on the atoms.
 
     :param MolproInput: the molpro .out file
     :return: rawData: List of strings with atom label and atom coordinates - example ['C', '0.1, '0.1', '0.1', ...]
             ene: Value of the energy: string
+            partialCh: List of strings with atom label and its partial charge - example ['C', '6.36', 'H', ...]
     """
 
     # This is the input file
@@ -122,6 +123,7 @@ def extractMolpro(MolproInput):
     # This will contain the data
     rawData = []
     ene = "0"
+    partialCh = []
 
 
     for line in inputFile:
@@ -134,13 +136,22 @@ def extractMolpro(MolproInput):
                 for j in range(len(lineSplit)):
                     rawData.append(lineSplit[j])
         # The energy is found two lines after the keyword "Final beta  occupancy:"
-        if "Final beta  occupancy:" in line:
+        elif "Final beta  occupancy:" in line:
             line = inputFile.next()
             line = inputFile.next()
             line = line.strip()
             ene = line[len("!RKS STATE 1.1 Energy"):].strip()
+        elif "Total charge composition:" in line:
+            line = inputFile.next()
+            line = inputFile.next()
+            for i in range(7):
+                line = inputFile.next()
+                lineSplit = line.rstrip().split(" ")
+                lineSplit = filter(None, lineSplit)
+                partialCh.append(lineSplit[1])
+                partialCh.append(lineSplit[-2])
 
-    return rawData, ene
+    return rawData, ene, partialCh
 
 def list_files(dir, key):
     """
@@ -177,6 +188,7 @@ def MolproToCSV(directory, key):
     # These are the output files
     fileX = open('X.csv', 'w')
     fileY = open('Y.csv', 'w')
+    fileZ = open('partialCh.csv', 'w')
 
     # Obtaining the list of files to mine
     fileList = list_files(directory, key)
@@ -184,8 +196,8 @@ def MolproToCSV(directory, key):
     # Iterating over all the files
     for item in fileList:
         # Extracting the geometry and the energy from a Molpro out file
-        geom, ene = extractMolpro(item)
-        if len(geom) != 28 or ene == "0":
+        geom, ene, partialCh = extractMolpro(item)
+        if len(geom) != 28 or ene == "0" or len(partialCh) != 14:
             print "The following file couldn't be read properly:"
             print item + "\n"
             continue
@@ -194,6 +206,11 @@ def MolproToCSV(directory, key):
             fileX.write(",")
         fileX.write("\n")
         fileY.write(ene + "\n")
+
+        for i in range(len(partialCh)):
+            fileZ.write(partialCh[i])
+            fileZ.write(",")
+        fileZ.write("\n")
 
 def loadX(fileX):
     """
