@@ -178,7 +178,7 @@ def MolproToCSV(directory, key):
     This function extracts all the geometries and energies from Molpro .out files contained in a particular directory.
     Only the files that have a particular string in their filename will be read. The geometries are then written to X.csv
     where each line is a different geometry. The energies are written to Y.csv where each line is the energy of a
-    different geometry.
+    different geometry. The partial charges are written to partialCh.csv
 
     :param directory: path to the directory containing the Molpro .out files
     :param key: string to look for in the file names
@@ -323,3 +323,88 @@ def loadPd(fileName):
     inputFile.close()
 
     return matrixX, matrixY
+
+def loadPd_q(fileName):
+    """
+    This function takes a .csv file containing a dataset formatted with the geometries in a 'clean datases' arrangement,
+    followed by the partial charges and 2 values of the energies.
+    :param fileName: .csv file
+    :return: matrixX: a list of lists with characters and floats. An example is shown below for 3 samples of a di hydrogen
+            molecule:
+            [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]
+            matrixY: a numpy array of energy differences (floats) of size (n_samples,)
+            matrixQ: a list of numpy arrays of the partial charges -  size (n_samples, n_atoms)
+    """
+
+    if fileName[-4:] != ".csv":
+        print "Error: the file extension is not .csv"
+        quit()
+
+    inputFile = open(fileName, 'r')
+    isFirstLine = True
+
+    # Lists that will contain the data
+    matrixX = []
+    matrixY = []
+    matrixQ = []
+
+    # Reading the file
+    for line in inputFile:
+        if isFirstLine:
+            line = inputFile.next()
+            isFirstLine = False
+
+        line = line.replace("\n", "")
+        listLine = line.split(",")
+
+        geom = extractGeom(listLine)
+        eneDiff = extractEneDiff(listLine)
+        partQ = extractQ(listLine)
+
+        matrixX.append(geom)
+        matrixY.append(eneDiff)
+        matrixQ.append(partQ)
+
+    matrixY = np.asarray(matrixY)
+
+    return matrixX, matrixY, matrixQ
+
+def extractGeom(lineList):
+    """
+    Function used by loadPd_q to extract the geometries.
+    :param lineList: line with geometries in clean format, partial charges and energies
+    :return: list of geometry in format [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0]...
+    """
+    geomPart = lineList[1:22]
+    atomLab = ["C","H","H","H","H","C","N"]
+    finalGeom = []
+
+    for i in range(len(atomLab)):
+        finalGeom.append(atomLab[i])
+        for j in range(3):
+            finalGeom.append(float(geomPart[3*i+j]))
+
+    return finalGeom
+
+def extractEneDiff(lineList):
+    """
+    Extracts the energy from a line of the clean data set
+    :param lineList: line with geometries in clean format, partial charges and energies
+    :return: energy difference (float)
+    """
+    enePart = lineList[-2:]
+    eneDiff = float(enePart[0]) - float(enePart[1])
+    return eneDiff
+
+def extractQ(lineList):
+    """
+    Extracts the partial charges from a line of the clean data set
+    :param lineList: line with geometries in clean format, partial charges and energies
+    :return: numpy array of partial charges of size (n_atoms)
+    """
+    qPart = lineList[22:-2]
+    for i in range(len(qPart)):
+        qPart[i] = float(qPart[i])
+
+    qPart = np.asarray(qPart)
+    return qPart
