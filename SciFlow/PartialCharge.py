@@ -10,13 +10,16 @@ class PartialCharges():
         self.n_atoms = int(len(self.rawX[0])/4)
         self.n_samples = len(self.rawX)
 
+        self.partQCM = np.zeros((self.n_samples, self.n_atoms ** 2))
+        self.partQCM24 = np.zeros((self.n_samples, self.n_atoms ** 2))
+        self.diagQ = np.zeros((self.n_samples, self.n_atoms))
+
     def generatePCCM(self):
         """
         This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
         are q_i^2 while the off diagonal elements are q_i*q_j / R_ij.
         :return: None
         """
-        self.partQCM = np.zeros((self.n_samples, self.n_atoms ** 2))
 
         # This is a coulomb matrix for one particular sample in the dataset
         indivPCCM = np.zeros((self.n_atoms, self.n_atoms))
@@ -62,7 +65,6 @@ class PartialCharges():
         are 0.5*q_i^2.4 while the off diagonal elements are q_i*q_j / R_ij.
         :return: None
         """
-        self.partQCM24 = np.zeros((self.n_samples, self.n_atoms ** 2))
 
         # This is a coulomb matrix for one particular sample in the dataset
         indivPCCM = np.zeros((self.n_atoms, self.n_atoms))
@@ -102,10 +104,27 @@ class PartialCharges():
         """
         return self.partQCM24
 
+    def generateDiagPCCM(self):
+        """
+        This function generates a descriptor that is a vector of q_i^2. It has the size of (n_samples, n_atoms).
+        :return: None
+        """
 
+        for i in range(self.n_samples):
+            partQ = self.rawQ[i]
+            for j in range(self.n_atoms):
+                self.diagQ[i][j] = partQ[j]**2
 
+        print "Generated the diagonal of the partial charge coulomb matrix."
+
+    def getDiagPCCM(self):
+        """
+        This function returns the diagonal of the partial charge coulomb matrix.
+        :return: numpy matrix of size (n_sample, n_atoms)
+        """
+        return self.diagQ
 
 if __name__ == "__main__":
     X, y, q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/pbe_b3lyp_partQ.csv")
     mat = PartialCharges(X, q)
-    mat.generatePCCM24()
+    mat.generateDiagPCCM()
