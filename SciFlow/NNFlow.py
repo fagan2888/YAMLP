@@ -7,7 +7,8 @@ import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
 from sklearn.utils.multiclass import unique_labels
-from sklearn.metrics import euclidean_distances
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
@@ -222,13 +223,17 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         :param y: The true values for X - numpy array of shape (N_samples,)
         :param sample_weight: sample_weight : array-like, shape = [n_samples], optional
             Sample weights (not sure what this is, but i need it for inheritance from the BaseEstimator)
-        :return: float - Mean accuracy of self.predict(X) wrt. y.
+        :return: r2 - between 0 and 1. Tells how good the correlation plot is. rmsekJmol - the root mean square error in
+        kJ/mol. maekJmol - the mean absolute error in kJ/mol.
         """
-        # print "Scoring the function. \n"
 
         y_pred = self.predict(X)
         r2 = r2_score(y, y_pred)
-        return r2
+        rmseHa = np.sqrt(mean_squared_error(y,y_pred))
+        maeHa = mean_absolute_error(y, y_pred)
+        rmsekJmol = rmseHa * 2625.50
+        maekJmol = maeHa * 2625.50
+        return r2, rmsekJmol, maekJmol
 
 
 # This example tests the module on fitting a simple quadratic function and then plots the results
