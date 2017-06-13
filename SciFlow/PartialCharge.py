@@ -3,9 +3,15 @@ import ImportData
 
 class PartialCharges():
 
-    def __init__(self, matrixX, matrixQ):
+    def __init__(self, matrixX, matrixY, matrixQ):
+        """
+        :param matrixX: a list of lists of atom labels and coordinates. size (n_samples, n_atoms*4)
+        :param matrixY: a numpy array of energy values of size (N_samples,)
+        :param matrixQ: a list of numpy arrays containing the partial charges of each atom. size (n_samples, n_atoms)
+        """
         self.rawX = matrixX
         self.rawQ = matrixQ
+        self.rawY = matrixY
 
         self.n_atoms = int(len(self.rawX[0])/4)
         self.n_samples = len(self.rawX)
@@ -14,10 +20,13 @@ class PartialCharges():
         self.partQCM24 = np.zeros((self.n_samples, self.n_atoms ** 2))
         self.diagQ = np.zeros((self.n_samples, self.n_atoms))
 
-    def generatePCCM(self):
+    def generatePCCM(self, numRep=1):
         """
         This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
-        are q_i^2 while the off diagonal elements are q_i*q_j / R_ij.
+        are q_i^2 while the off diagonal elements are q_i*q_j / R_ij. The descriptor is randomised in the same way as
+        the randomly sorted coulomb matrix and becomes an array of size (n_samples*numRep, n_atoms^2)
+        :y_data: a numpy array of energy values of size (N_samples,)
+        :numRep: number of randomly sorted matrices to generate per sample data - int
         :return: None
         """
 
@@ -50,19 +59,23 @@ class PartialCharges():
             self.partQCM[sampleCount, :] = indivPCCM.flatten()
             sampleCount += 1
 
+        self.partQCM, self.y = self.__randomSort(self.partQCM, self.rawY, numRep)
+
         print "Generated the partial charge coulomb matrix."
 
     def getPCCM(self):
         """
-        Returns the partial charge coulomb matrix
-        :return: numpy array of size (n_samples, n_atoms**2)
+        Returns the partial charge coulomb matrix and the extended y matrix
+        :return: numpy array of size (n_samples*numRep, n_atoms**2), y: extended matrix of energies, numpy array of size
+        (n_samples*numRep,)
         """
-        return self.partQCM
+        return self.partQCM, self.y
 
-    def generatePCCM24(self):
+    def generatePCCM24(self, numRep=1):
         """
         This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
         are 0.5*q_i^2.4 while the off diagonal elements are q_i*q_j / R_ij.
+        :numRep: number of randomly sorted matrices to generate per sample data - int
         :return: None
         """
 
@@ -95,14 +108,64 @@ class PartialCharges():
             self.partQCM24[sampleCount, :] = indivPCCM.flatten()
             sampleCount += 1
 
+        self.partQCM24, self.y = self.__randomSort(self.partQCM24, self.rawY, numRep)
+
         print "Generated the partial charge coulomb matrix (diagonal ^2.4)."
 
     def getPCCM24(self):
         """
         Returns the partial charge coulomb matrix where the diagonal elements are raised to the 2.4
-        :return: numpy array of size (n_samples, n_atoms**2)
+        :return: numpy array of size (n_samples, n_atoms**2), y: extended matrix of energies, numpy array of size
+        (n_samples*numRep,)
         """
-        return self.partQCM24
+        return self.partQCM24, self.y
+
+    def __randomSort(self, X, y, numRep):
+        """
+        This function randomly sorts the rows of the coulomb matrices depending on their column norm. It generates a
+        matrix of size (n_samples*numRep, n_atoms^2)
+        :numRep: The number of randomly sorted matrices to be generated for each data sample.
+        :return: ranSort: numpy array of size (n_samples*numRep, n_atoms^2),
+                y_bigdata: a numpy array of energy values of size (N_samples*numRep,)
+        """
+
+        # Checking reasonable numRep value
+        if (isinstance(numRep, int) == False):
+            print "Error: you gave a non-integer value for the number of RSCM that you want to generate."
+            return None
+        elif (numRep < 1):
+            print "Error: you cannot generate less than 1 RSCM per sample. Enter an integer value > 1."
+
+        counter = 0
+        ranSort = np.zeros((self.n_samples * numRep, self.n_atoms ** 2))
+        y_bigdata = np.zeros((self.n_samples * numRep,))
+
+        for i in range(self.n_samples):
+            tempMat = np.reshape(X[i, :], (self.n_atoms, self.n_atoms))
+
+            # Calculating the norm vector for the coulomb matrix
+            rowNorms = np.zeros(self.n_atoms)
+
+            for j in range(self.n_atoms):
+                rowNorms[j] = np.linalg.norm(tempMat[j, :])
+
+            for k in range(numRep):
+                # Generating random vectors and adding to the norm vector
+                randVec = np.random.normal(loc=0.0, scale=1.0, size=self.n_atoms)
+                rowNormRan = rowNorms + randVec
+                # Sorting the new random norm vector
+                permutations = np.argsort(rowNormRan)
+                permutations = permutations[::-1]
+                # Sorting accordingly the Coulomb matrix
+                tempRandCM = tempMat[permutations, :]
+                # Adding flattened randomly sorted Coulomb matrix to the final descriptor matrix
+                ranSort[counter, :] = tempRandCM.flatten()
+                counter = counter + 1
+
+            # Copying multiple values of the energies
+            y_bigdata[numRep * i:numRep * i + numRep] = y[i]
+
+        return ranSort, y_bigdata
 
     def generateDiagPCCM(self):
         """
@@ -126,5 +189,5 @@ class PartialCharges():
 
 if __name__ == "__main__":
     X, y, q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/pbe_b3lyp_partQ.csv")
-    mat = PartialCharges(X, q)
-    mat.generateDiagPCCM()
+    mat = PartialCharges(X, y, q)
+    mat.generatePCCM(numRep=4)
