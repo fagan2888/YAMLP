@@ -223,13 +223,25 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         :param y: The true values for X - numpy array of shape (N_samples,)
         :param sample_weight: sample_weight : array-like, shape = [n_samples], optional
             Sample weights (not sure what this is, but i need it for inheritance from the BaseEstimator)
+        :return: r2 - between 0 and 1. Tells how good the correlation plot is.
+        """
+
+        y_pred = self.predict(X)
+        r2 = r2_score(y, y_pred)
+        return r2
+
+    def scoreFull(self, X, y):
+        """
+        Returns the mean accuracy on the given test data and labels. It calculates the R^2 value.
+        :param X: The x values - numpy array of shape (N_samples, n_features)
+        :param y: The true values for X - numpy array of shape (N_samples,)
         :return: r2 - between 0 and 1. Tells how good the correlation plot is. rmsekJmol - the root mean square error in
         kJ/mol. maekJmol - the mean absolute error in kJ/mol.
         """
 
         y_pred = self.predict(X)
         r2 = r2_score(y, y_pred)
-        rmseHa = np.sqrt(mean_squared_error(y,y_pred))
+        rmseHa = np.sqrt(mean_squared_error(y, y_pred))
         maeHa = mean_absolute_error(y, y_pred)
         rmsekJmol = rmseHa * 2625.50
         maekJmol = maeHa * 2625.50
