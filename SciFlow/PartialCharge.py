@@ -158,6 +158,7 @@ class PartialCharges():
                 permutations = permutations[::-1]
                 # Sorting accordingly the Coulomb matrix
                 tempRandCM = tempMat[permutations, :]
+                tempRandCM = tempRandCM[:,permutations]
                 # Adding flattened randomly sorted Coulomb matrix to the final descriptor matrix
                 ranSort[counter, :] = tempRandCM.flatten()
                 counter = counter + 1

@@ -163,6 +163,7 @@ class CoulombMatrix():
                 permutations = permutations[::-1]
                 # Sorting accordingly the Coulomb matrix
                 tempRandCM = tempCM[permutations, :]
+                tempRandCM = tempRandCM[:,permutations]
                 # Adding flattened randomly sorted Coulomb matrix to the final descriptor matrix
                 coulRS[counter, :] = tempRandCM.flatten()
                 counter = counter + 1
