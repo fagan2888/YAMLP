@@ -97,7 +97,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_init).minimize(cost)
 
         # Initialisation of the model
-        init = tf.initialize_all_variables()
+        init = tf.global_variables_initializer()
 
         # Running the graph
         with tf.Session() as sess:
@@ -143,9 +143,9 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         This function calculates the cost function.
         :param model: This is the tensor with the structure of the neural network
         :param Y_data: The Y part of the training data (it is a tensorflow place holder)
-        :param parameters: a list of TF variables with the weights.
+        :param parameters: a list of TF global_variables with the weights.
         :param regu: the regularisation parameter
-        :return: it returns the cost function (TF variable).
+        :return: it returns the cost function (TF global_variable).
         """
         cost = tf.reduce_mean(tf.nn.l2_loss((model - Y_data)))  # using the quadratic cost function
         regulariser = tf.nn.l2_loss(parameters[0]) + tf.nn.l2_loss(parameters[1])
@@ -205,7 +205,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             parameters = [tf.Variable(self.w1), tf.Variable(self.b1), tf.Variable(self.w2), tf.Variable(self.b2)]
             model = self.modelNN(X_test, parameters)
 
-            init = tf.initialize_all_variables()
+            init = tf.global_variables_initializer()
 
             with tf.Session() as sess:
                 sess.run(init)
