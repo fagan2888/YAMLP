@@ -15,7 +15,7 @@ from sklearn import pipeline as pip
 
 
 # Importing the data
-X, y = ImportData.loadPd("hackathonData.csv")
+X, y = ImportData.loadPd("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/tot-pbe-b3lyp.csv")
 
 # Creating the CM object
 coulMat = CoulombMatrix.CoulombMatrix(matrixX=X)
@@ -31,16 +31,16 @@ X_scal = preproc.StandardScaler().fit_transform(descript)
 X_train, X_test, y_train, y_test = modsel.train_test_split(X_scal, y, test_size=0.1)
 
 # Defining the estimator
-estimator = NNFlow.MLPRegFlow(max_iter=20, learning_rate_init=0.001, hidden_layer_sizes=(45,))
+estimator = NNFlow.MLPRegFlow(max_iter=50, hidden_layer_sizes=(45,))
 
 # Set up the cross validation set, for doing 5 k-fold validation
-cv_iter = modsel.KFold(n_splits=2)
+cv_iter = modsel.KFold(n_splits=5)
 
 # Dictionary of hyper parameters to optimise
 hypPar = {}
-# hypPar.update({"learning_rate_init":[0.00001,0.0001,0.001,0.01,0.1]})
+hypPar.update({"learning_rate_init":[0.00001,0.0001,0.001,0.01,0.1]})
 # hypPar.update({"hidden_layer_sizes":[(45,), (46,), (47,), (48,)]})
-hypPar.update({"alpha":[0.255, 0.26, 0.265, 0.27]})
+hypPar.update({"alpha":[0.24, 0.255, 0.26, 0.265]})
 
 grid_search = modsel.GridSearchCV(estimator=estimator,param_grid=hypPar,cv=cv_iter)
 
