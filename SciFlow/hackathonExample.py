@@ -14,17 +14,17 @@ from sklearn import model_selection as modsel
 
 
 # Importing the data
-X, y = ImportData.loadPd("hackathonData.csv")
+X, y = ImportData.loadPd("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/hackathonData.csv")
 
 # Creating the CM object
 coulMat = CoulombMatrix.CoulombMatrix(matrixX=X)
 #  Creating the three descriptors
-# eigSpec = coulMat.generateES()
+eigSpec = coulMat.generateES()
 # sortMat = coulMat.generateSCM()
-ranSorMat, y = coulMat.generateRSCM(y_data=y, numRep=4)
+# ranSorMat, y = coulMat.generateRSCM(y_data=y, numRep=4)
 
 # Normalising the data
-X_scal = preproc.StandardScaler().fit_transform(ranSorMat)
+X_scal = preproc.StandardScaler().fit_transform(eigSpec)
 
 # Split into training and test set
 X_train, X_test, y_train, y_test = modsel.train_test_split(X_scal, y, test_size=0.1)

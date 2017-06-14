@@ -311,7 +311,7 @@ def loadPd(fileName):
         for i in range(len(ene)):
             ene[i] = float(ene[i])
 
-        eneDiff = ene[0] - ene[1]
+        eneDiff = ene[1] - ene[0]
         matrixY.append(eneDiff)
 
         for i in range(0,len(geom)-1,4):
