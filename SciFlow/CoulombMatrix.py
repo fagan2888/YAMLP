@@ -25,6 +25,9 @@ class CoulombMatrix():
     """
 
     def __init__(self, matrixX = None):
+        """
+        :param matrixX: list of lists of atom labels and their coordinates.
+        """
 
         self.rawX = matrixX
         self.Z = {
@@ -127,12 +130,13 @@ class CoulombMatrix():
         y part of the data so that there are numRep copies of each energy.
         :y_data: a numpy array of energy values of size (N_samples,)
         :param numRep: number of randomly sorted matrices to be generated per sample - int
-        :return: the randomly sorted CM - numpy array of size (N_samples*numRep, n_atoms^2)
+        :return: the randomly sorted CM - numpy array of size (N_samples*numRep, n_atoms^2),
+                y_bigdata: a numpy array of energy values of size (N_samples*numRep,)
         """
 
         # Checking reasonable numRep value
         if(isinstance(numRep, int) == False):
-            print "Error: you gave a nun integer value for the number of RSCM that you want to generate."
+            print "Error: you gave a non-integer value for the number of RSCM that you want to generate."
             return None
         elif(numRep < 1):
             print "Error: you cannot generate less than 1 RSCM per sample. Enter an integer value > 1."
@@ -152,7 +156,7 @@ class CoulombMatrix():
 
             for k in range(numRep):
                 # Generating random vectors and adding to the norm vector
-                randVec = np.random.normal(loc=0.0, scale=1.0, size=self.n_atoms)
+                randVec = np.random.normal(loc=0.0, scale=np.std(rowNorms), size=self.n_atoms)
                 rowNormRan = rowNorms + randVec
                 # Sorting the new random norm vector
                 permutations = np.argsort(rowNormRan)
@@ -171,18 +175,17 @@ class CoulombMatrix():
 
 
 
-
 if __name__ == "__main__":
 
     def testMatrix():
-        test = [["H", 0.0, 0.0, 0.0, "H", 1.0, 0.0, 0.0, "C", 0.5, 0.5, 0.5], ["H", 0.1, 0.0, 0.0, "H", 0.9, 0.0, 0.0, "C", -0.5, -0.5, -0.5],
+        X = [["H", 0.0, 0.0, 0.0, "H", 1.0, 0.0, 0.0, "C", 0.5, 0.5, 0.5], ["H", 0.1, 0.0, 0.0, "H", 0.9, 0.0, 0.0, "C", -0.5, -0.5, -0.5],
                 ["H", -0.1, 0.0, 0.0, "H", 1.1, 0.0, 0.0, "C", 1.0, 1.0, 1.0]]
-        return test
+        y = np.array([4.0, 3.0, 1.0])
+        return X, y
 
 
-    test = testMatrix()
-    CM = CoulombMatrix(matrixX=test)
-    print CM.getCM()
+    X, y = testMatrix()
+    CM = CoulombMatrix(matrixX=X)
     CM.generateES()
     CM.generateSCM()
-    CM.generateRSCM(numRep=2)
+    CM.generateRSCM(y, numRep=5)

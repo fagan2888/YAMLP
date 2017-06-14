@@ -151,7 +151,7 @@ class PartialCharges():
 
             for k in range(numRep):
                 # Generating random vectors and adding to the norm vector
-                randVec = np.random.normal(loc=0.0, scale=1.0, size=self.n_atoms)
+                randVec = np.random.normal(loc=0.0, scale=np.std(rowNorms), size=self.n_atoms)
                 rowNormRan = rowNorms + randVec
                 # Sorting the new random norm vector
                 permutations = np.argsort(rowNormRan)
