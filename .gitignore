@@ -2,3 +2,17 @@ scratch/.ipynb_checkpoints/
 scratch/Data diff.ipynb
 scratch/Data_TMCS_hackathon.ipynb
 scratch/__init__.py
+
+*.iml
+
+*.xml
+
+*.pyc
+
+tests/
+
+SciFlow/dataSets/data_coul\.csv
+
+SciFlow/dataSets/data_pccm\.csv
+
+SciFlow/dataSets/data_pccm24\.csv

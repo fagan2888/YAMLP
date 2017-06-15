@@ -12,13 +12,14 @@ from sklearn.metrics import mean_absolute_error
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
+import pickle
 
 
 
 class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
     def __init__(self, hidden_layer_sizes=(100,), alpha=0.0001, batch_size="auto",
-                 learning_rate="constant", learning_rate_init=0.001, power_t=0.5, max_iter=1000, shuffle=True,
+                 learning_rate="constant", learning_rate_init=0.001, power_t=0.5, max_iter=80, shuffle=True,
                  random_state=None, tol=1e-4, verbose=False, momentum=0.9, nesterovs_momentum=True,
                  early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
 
@@ -250,30 +251,30 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
 # This example tests the module on fitting a simple quadratic function and then plots the results
 
-if __name__ == "__main__":
-
-    estimator = MLPRegFlow(hidden_layer_sizes=(5,), learning_rate_init=0.01, max_iter=5000, alpha=0)
-
-    x = np.arange(-2.0, 2.0, 0.1)
-    X = np.reshape(x, (len(x), 1))
-    y = np.reshape(X ** 3, (len(x),))
-
-    estimator.fit(X, y)
-    estimator.plotTrainCost()
-    y_pred = estimator.predict(X)
-
-    #  Visualisation of predictions
-    fig2, ax2 = plt.subplots(figsize=(6,6))
-    ax2.scatter(x, y, label="original", marker="o", c="r")
-    ax2.scatter(x, y_pred, label="predictions", marker="o", c='b')
-    ax2.set_xlabel('x')
-    ax2.set_ylabel('y')
-    ax2.legend()
-
-    # Correlation plot
-    fig3, ax3 = plt.subplots(figsize=(6,6))
-    ax3.scatter(y, y_pred, label="CAS-SCF", marker="o", c="r")
-    ax3.set_xlabel('original y')
-    ax3.set_ylabel('prediction y')
-
-    plt.show()
+# if __name__ == "__main__":
+#
+#     silvia = MLPRegFlow(hidden_layer_sizes=(5,), learning_rate_init=0.01, max_iter=5000, alpha=0)
+#     pickle.dump(silvia, open('../tests/model.pickl','wb'))
+    # x = np.arange(-2.0, 2.0, 0.1)
+    # X = np.reshape(x, (len(x), 1))
+    # y = np.reshape(X ** 3, (len(x),))
+    #
+    # estimator.fit(X, y)
+    # estimator.plotTrainCost()
+    # y_pred = estimator.predict(X)
+    #
+    # #  Visualisation of predictions
+    # fig2, ax2 = plt.subplots(figsize=(6,6))
+    # ax2.scatter(x, y, label="original", marker="o", c="r")
+    # ax2.scatter(x, y_pred, label="predictions", marker="o", c='b')
+    # ax2.set_xlabel('x')
+    # ax2.set_ylabel('y')
+    # ax2.legend()
+    #
+    # # Correlation plot
+    # fig3, ax3 = plt.subplots(figsize=(6,6))
+    # ax3.scatter(y, y_pred, label="CAS-SCF", marker="o", c="r")
+    # ax3.set_xlabel('original y')
+    # ax3.set_ylabel('prediction y')
+    #
+    # plt.show()

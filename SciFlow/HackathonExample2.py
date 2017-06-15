@@ -15,7 +15,7 @@ from sklearn import pipeline as pip
 
 
 # Importing the data
-X, y = ImportData.loadPd("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/tot-pbe-b3lyp.csv")
+X, y = ImportData.loadPd("dataSets/tot-pbe-b3lyp.csv")
 
 # Creating the CM object
 coulMat = CoulombMatrix.CoulombMatrix(matrixX=X)
