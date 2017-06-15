@@ -1,5 +1,6 @@
 """
-This script uses the total PBE/B3LYP dataset with partial charges to fit a neural network.
+This script uses the total PBE/B3LYP dataset (absolute energies) with partial charges to fit a neural network.
+It uses Gridsearch and is not parallelised.
 """
 
 import ImportData
@@ -14,12 +15,12 @@ from datetime import datetime
 startTime = datetime.now()
 
 # Importing the data
-X, y, Q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/pbe_b3lyp_partQ.csv")
+X, y, Q = ImportData.loadPd_q("dataSets/pbe_b3lyp_partQ.csv")
 
 # Creating the descriptors
 descr = PartialCharge.PartialCharges(X, y, Q)
 descr.generatePCCM(numRep=4)
-PCCM = descr.getPCCM()
+PCCM, y = descr.getPCCM()
 
 # Normalising the data
 X_scal = preproc.StandardScaler().fit_transform(PCCM)
