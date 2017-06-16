@@ -18,7 +18,7 @@ import pickle
 
 class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
-    def __init__(self, hidden_layer_sizes=(100,), alpha=0.0001, batch_size="auto",
+    def __init__(self, hidden_layer_sizes=(0,), n_units=45, alpha=0.0001, batch_size="auto",
                  learning_rate="constant", learning_rate_init=0.001, power_t=0.5, max_iter=80, shuffle=True,
                  random_state=None, tol=1e-4, verbose=False, momentum=0.9, nesterovs_momentum=True,
                  early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
@@ -30,7 +30,12 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         self.learning_rate_init = learning_rate_init
         self.power_t = power_t
         self.max_iter = max_iter
-        self.hidden_layer_sizes = hidden_layer_sizes
+        # This is needed for Osprey, because you can only do parameter optimisation by passing integers or floats,
+        # not tuples. So here we need a way of dealing with this.
+        if hidden_layer_sizes == (0,):
+            self.hidden_layer_sizes = (n_units,)
+        else:
+            self.hidden_layer_sizes = hidden_layer_sizes
         self.shuffle = shuffle
         self.random_state = random_state
         self.tol = tol
