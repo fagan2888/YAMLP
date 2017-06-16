@@ -96,8 +96,6 @@ class CoulombMatrix():
             tempES, tempDiag = LA.eig(tempCM)
             self.coulES[i,:] = tempES
 
-        print "Generated the Eigen spectrum descriptor. \n"
-
         return self.coulES
 
     def generateSCM(self):
@@ -120,6 +118,7 @@ class CoulombMatrix():
             permutations = permutations[::-1]
 
             tempCM = tempCM[permutations, :]
+            tempCM = tempCM[:, permutations]
             coulS[i, :] = tempCM.flatten()
 
         return coulS
@@ -173,6 +172,18 @@ class CoulombMatrix():
 
         return coulRS, y_bigdata
 
+    def plot(self, X, n=0):
+        """
+        This function plots a coulomb matrix that is contained in the X descriptor.
+        :param X: The coulomb matrix for all samples
+        :param n: which line to plot of X
+        :return: None
+        """
+        import seaborn as sns
+
+        matrix = np.reshape(X[n], (self.n_atoms, self.n_atoms))
+        sns.heatmap(data=matrix)
+        sns.plt.show()
 
 
 
@@ -184,9 +195,12 @@ if __name__ == "__main__":
         y = np.array([4.0, 3.0, 1.0])
         return X, y
 
-
     X, y = testMatrix()
     CM = CoulombMatrix(matrixX=X)
     CM.generateES()
     CM.generateSCM()
-    CM.generateRSCM(y, numRep=5)
+    X, y = CM.generateRSCM(y, numRep=5)
+
+    CM.plot(X)
+
+
