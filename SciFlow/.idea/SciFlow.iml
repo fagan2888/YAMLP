@@ -2,6 +2,9 @@
 <module type="PYTHON_MODULE" version="4">
   <component name="NewModuleRootManager">
     <content url="file://$MODULE_DIR$" />
+    <content url="file://$MODULE_DIR$/../../trainingNN">
+      <sourceFolder url="file://$MODULE_DIR$/../../trainingNN" isTestSource="false" />
+    </content>
     <orderEntry type="jdk" jdkName="Python 2.7.13 (~/anaconda2/envs/tensorflow/bin/python2.7)" jdkType="Python SDK" />
     <orderEntry type="sourceFolder" forTests="false" />
   </component>
