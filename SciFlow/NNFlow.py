@@ -138,9 +138,9 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
 
         # Definition of the model
-        a1 = tf.matmul(X, tf.transpose(parameters[0])) + parameters[1]  # output of layer1, size = n_sample x n_hidden_layer
-        a1 = tf.nn.tanh(a1)
-        model = tf.matmul(a1, tf.transpose(parameters[2])) + parameters[3]  # output of last layer, size = n_samples x 1
+        a1 = tf.add(tf.matmul(X, tf.transpose(parameters[0])), parameters[1])  # output of layer1, size = n_sample x n_hidden_layer
+        a1 = tf.nn.sigmoid(a1)
+        model = tf.add(tf.matmul(a1, tf.transpose(parameters[2])), parameters[3])  # output of last layer, size = n_samples x 1
 
         return model
 
@@ -153,7 +153,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         :param regu: the regularisation parameter
         :return: it returns the cost function (TF global_variable).
         """
-        cost = tf.reduce_mean(tf.nn.l2_loss((model - Y_data)))  # using the quadratic cost function
+        cost = tf.nn.l2_loss(t=(model - Y_data))  # using the quadratic cost function
         regulariser = tf.nn.l2_loss(parameters[0]) + tf.nn.l2_loss(parameters[1])
         cost = tf.reduce_mean(cost + regu * regulariser)
 
