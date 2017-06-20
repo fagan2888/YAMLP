@@ -178,7 +178,7 @@ def MolproToCSV(directory, key):
     This function extracts all the geometries and energies from Molpro .out files contained in a particular directory.
     Only the files that have a particular string in their filename will be read. The geometries are then written to X.csv
     where each line is a different geometry. The energies are written to Y.csv where each line is the energy of a
-    different geometry. The partial charges are written to partialCh.csv
+    different geometry. The partial charges are written to Q.csv
 
     :param directory: path to the directory containing the Molpro .out files
     :param key: string to look for in the file names
@@ -188,7 +188,7 @@ def MolproToCSV(directory, key):
     # These are the output files
     fileX = open('X.csv', 'w')
     fileY = open('Y.csv', 'w')
-    fileZ = open('partialCh.csv', 'w')
+    fileZ = open('Q.csv', 'w')
 
     # Obtaining the list of files to mine
     fileList = list_files(directory, key)
@@ -393,7 +393,7 @@ def extractEneDiff(lineList):
     :return: energy difference (float)
     """
     enePart = lineList[-2:]
-    eneDiff = float(enePart[0]) - float(enePart[1])
+    eneDiff = float(enePart[1]) - float(enePart[0])
     return eneDiff
 
 def extractQ(lineList):

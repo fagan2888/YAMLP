@@ -55,8 +55,9 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         self.b2 = 0
         self.alreadyInitialised = False
         self.trainCost = []
+        self.testCost = []
 
-    def fit(self, X, y):
+    def fit(self, X, y, *test):
         """
         Fit the model to data matrix X and target y.
         :param X: {array-like, sparse matrix}, shape (n_samples, n_features) - The input data.
@@ -69,7 +70,16 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         # Check that X and y have correct shape
         X, y = check_X_y(X, y)
         # Modification of the y data, because tensorflow wants a column vector, while scikit learn uses a row vector
-        y = np.reshape(y, (len(y),1))
+        y = np.reshape(y, (len(y), 1))
+
+        # Checking if a test set has been passed
+        if test:
+            if len(test) > 2:
+                raise TypeError("foo() expected 2 arguments, got %d" % (len(test)))
+            X_test = test[0]
+            y_test = test[1]
+            check_X_y(X_test, y_test)
+            y_test = np.reshape(y_test, (len(y_test), 1))
 
         # Check that the architecture has only 1 hidden layer
         if len(self.hidden_layer_sizes) != 1:
@@ -120,6 +130,9 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                     batch_y = y[i * self.batch_size:(i + 1) * self.batch_size, :]
                     opt, c = sess.run([optimizer, cost], feed_dict={X_train: batch_x, Y_train: batch_y})
                     avg_cost += c / n_batches
+                if test and iter % 50 == 0:
+                    optTest, cTest = sess.run([optimizer, cost], feed_dict={X_train: X_test, Y_train: y_test})
+                    self.testCost.append(cTest)
                 self.trainCost.append(avg_cost)
                 if iter % 100 == 0:
                     print "Completed " + str(iter) + " iterations. \n"
@@ -165,6 +178,17 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         ax2.set_xlabel('Number of iterations')
         ax2.set_ylabel('Cost Value in train set')
         ax2.legend()
+        plt.show()
+
+    def plotLearningCurve(self):
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.plot(self.trainCost, label="Train set", color="b")
+        iterTest = range(0, self.max_iter, 50)
+        ax.plot(iterTest, self.testCost, label="Test set", color="red")
+        ax.set_xlabel('Number of iterations')
+        ax.set_ylabel('Cost Value')
+        ax.legend()
+        plt.yscale("log")
         plt.show()
 
     def checkBatchSize(self):
