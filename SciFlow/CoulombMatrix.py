@@ -104,7 +104,7 @@ class CoulombMatrix():
         :return: the sorted coulomb matrix - numpy array of size (N_samples, n_atoms^2)
         """
 
-        coulS = np.zeros((self.n_samples, self.n_atoms ** 2))
+        coulS = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5)))
 
         for i in range(self.n_samples):
             tempCM = np.reshape(self.coulMatrix[i, :], (self.n_atoms, self.n_atoms))
@@ -119,7 +119,7 @@ class CoulombMatrix():
 
             tempCM = tempCM[permutations, :]
             tempCM = tempCM[:, permutations]
-            coulS[i, :] = tempCM.flatten()
+            coulS[i, :] = self.trimAndFlat(tempCM)
 
         return coulS
 
@@ -141,7 +141,7 @@ class CoulombMatrix():
             print "Error: you cannot generate less than 1 RSCM per sample. Enter an integer value > 1."
 
         counter = 0
-        coulRS = np.zeros((self.n_samples*numRep, self.n_atoms ** 2))
+        coulRS = np.zeros((self.n_samples*numRep, int(self.n_atoms * (self.n_atoms+1) * 0.5)))
         y_bigdata = np.zeros((self.n_samples*numRep,))
 
         for i in range(self.n_samples):
@@ -163,14 +163,34 @@ class CoulombMatrix():
                 # Sorting accordingly the Coulomb matrix
                 tempRandCM = tempCM[permutations, :]
                 tempRandCM = tempRandCM[:,permutations]
-                # Adding flattened randomly sorted Coulomb matrix to the final descriptor matrix
-                coulRS[counter, :] = tempRandCM.flatten()
+                # Adding flattened and trimmed randomly sorted Coulomb matrix to the final descriptor matrix
+                coulRS[counter, :] = self.trimAndFlat(tempRandCM)
                 counter = counter + 1
 
             # Copying multiple values of the energies
             y_bigdata[numRep*i:numRep*i+numRep] = y_data[i]
 
         return coulRS, y_bigdata
+
+    def trimAndFlat(self, X):
+        """
+        This function takes a coulomb matrix and trims it so that only the upper triangular part of the matrix is kept.
+        It returns the flattened trimmed array.
+        :param X: Coulomb matrix for one sample. numpy array of shape (n_atoms, n_atoms)
+        :return: numpy array of shape (n_atoms*(n_atoms+1)/2, )
+        """
+        size = int(self.n_atoms * (self.n_atoms+1) * 0.5)
+        temp = np.zeros((size,))
+        counter = 0
+
+        for i in range(self.n_atoms):
+            for j in range(i, self.n_atoms):
+                temp[counter] = X[i][j]
+                counter = counter + 1
+
+        return temp
+
+
 
     def plot(self, X, n=0):
         """
