@@ -172,6 +172,19 @@ class CoulombMatrix():
 
         return coulRS, y_bigdata
 
+    def generateTrimmedCM(self):
+        """
+        This function returns the trimmed version of the Coulomb matrix.
+        :return: the trimmed coulomb matrix. NP array of shape (self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5))
+        """
+        self.trimCM = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5)))
+
+        for i in range(self.n_samples):
+            tempCM = np.reshape(self.coulMatrix[i,:], (self.n_atoms, self.n_atoms))
+            self.trimCM[i,:] = self.trimAndFlat(tempCM)
+
+        return self.trimCM
+
     def trimAndFlat(self, X):
         """
         This function takes a coulomb matrix and trims it so that only the upper triangular part of the matrix is kept.
@@ -189,8 +202,6 @@ class CoulombMatrix():
                 counter = counter + 1
 
         return temp
-
-
 
     def plot(self, X, n=0):
         """
@@ -220,7 +231,8 @@ if __name__ == "__main__":
     CM.generateES()
     CM.generateSCM()
     X, y = CM.generateRSCM(y, numRep=5)
+    X = CM.generateTrimmedCM()
 
-    CM.plot(X)
+    # CM.plot(X)
 
 
