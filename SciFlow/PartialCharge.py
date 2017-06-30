@@ -26,10 +26,9 @@ class PartialCharges():
         This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
         are q_i^2 while the off diagonal elements are q_i*q_j / R_ij. The descriptor is randomised in the same way as
         the randomly sorted coulomb matrix and becomes an array of size (n_samples*numRep, n_atoms^2)
-        :y_data: a numpy array of energy values of size (N_samples,)
         :numRep: number of randomly sorted matrices to generate per sample data - int
-        :return: numpy array of size (n_samples*numRep, n_atoms**2), y: extended matrix of energies, numpy array of size
-        (n_samples*numRep,)
+        :return: numpy array of size (n_samples*numRep, n_atoms*(n_atoms+1)*0.5),
+        y: extended matrix of energies, numpy array of size (n_samples*numRep,)
         """
 
         # This is a coulomb matrix for one particular sample in the dataset
@@ -58,6 +57,7 @@ class PartialCharges():
                     # Putting the partial charge in
                     indivPCCM[j, k] = self.rawQ[i][j]*self.rawQ[i][k]/ distance
                     indivPCCM[k, j] = indivPCCM[j, k]
+
 
             # The partial charge CM for each sample is flattened and added to the total matrix
             fullPCCM[sampleCount, :] = indivPCCM.flatten()
@@ -115,7 +115,6 @@ class PartialCharges():
         print "Generated the partial charge coulomb matrix (diagonal ^2.4)."
 
         return self.partQCM24, self.y
-
 
     def __randomSort(self, X, y, numRep):
         """
@@ -180,6 +179,51 @@ class PartialCharges():
 
         return self.diagQ
 
+    def generateUnrandomisedPCCM(self):
+        """
+        This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
+        are q_i^2 while the off diagonal elements are q_i*q_j / R_ij. The descriptor is NOT randomised.
+        :return:
+        X: numpy array of size (n_samples, n_atoms * (n_atoms+1) * 0.5),
+        y: extended matrix of energies, numpy array of size (n_samples,)
+        """
+
+        # This is a coulomb matrix for one particular sample in the dataset
+        indivPCCM = np.zeros((self.n_atoms, self.n_atoms))
+        # This is a matrix containing all the CM for each sample in full (each CM has size n_atoms**2)
+        self.trimPCCM = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms + 1) * 0.5)))
+        sampleCount = 0
+        self.y = self.rawY
+
+        for i in range(self.n_samples):
+            # Making a vector with the coordinates of the atoms in this data sample
+            coord = []
+            currentSamp = self.rawX[i]
+            for j in range(0, len(currentSamp), 4):
+                coord.append(np.asarray([currentSamp[j + 1], currentSamp[j + 2], currentSamp[j + 3]]))
+
+            # Populating the diagonal elements
+            for j in range(self.n_atoms):
+                indivPCCM[j, j] = self.rawQ[i][j] ** 2
+
+            # Populating the off-diagonal elements
+            for j in range(self.n_atoms - 1):
+                for k in range(j + 1, self.n_atoms):
+                    # Distance between two atoms
+                    distanceVec = coord[j] - coord[k]
+                    distance = np.sqrt(np.dot(distanceVec, distanceVec))
+                    # Putting the partial charge in
+                    indivPCCM[j, k] = self.rawQ[i][j] * self.rawQ[i][k] / distance
+                    indivPCCM[k, j] = indivPCCM[j, k]
+
+            # The partial charge CM for each sample is flattened and added to the total matrix
+            self.trimPCCM[sampleCount, :] = self.trimAndFlat(indivPCCM)
+            sampleCount += 1
+
+        print "Generated the NON-randomised partial charge coulomb matrix."
+
+        return self.trimPCCM, self.y
+
     def trimAndFlat(self, X):
         """
         This function takes a coulomb matrix and trims it so that only the upper triangular part of the matrix is kept.
@@ -201,4 +245,6 @@ class PartialCharges():
 if __name__ == "__main__":
     X, y, q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/pbe_b3lyp_partQ.csv")
     mat = PartialCharges(X, y, q)
-    mat.generatePCCM24(numRep=2)
+    descriptor = mat.generateUnrandomisedPCCM()
+    print descriptor[:][0]
+    
