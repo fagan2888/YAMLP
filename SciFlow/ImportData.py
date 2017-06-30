@@ -408,3 +408,48 @@ def extractQ(lineList):
 
     qPart = np.asarray(qPart)
     return qPart
+
+def CSVtoTew(CSVfile):
+    """
+    This file can take a CSV file such as pbe_b3lyp_partQ_rel.csv and turn it into a monotlithic file that can be used
+    to train Tew method.
+    :param CSVfile: the CSV file with the data
+    :return: None
+    """
+
+    inputFile = open(CSVfile, 'r')
+    outputFile = open("/Users/walfits/Repositories/trainingdata/TewDescriptor/monolithic.dat", "w")
+    isFirstLine = True
+
+    for line in inputFile:
+        if isFirstLine:
+            line = inputFile.next()
+            isFirstLine = False
+
+        line = line.strip()
+        lineSplit = line.split(",")
+
+        writeToMono(outputFile, lineSplit)
+
+    inputFile.close()
+    outputFile.close()
+
+def writeToMono(outFile, data):
+    """
+    This function takes a line of the CSV file such as pbe_b3lyp_partQ_rel.csv and turns it into the format of a
+    monolythic trajectory file. It then writes it to the output file.
+    :param outFile: The monolithic trajectory file
+    :param data: a line of the original CSV file
+    :return: None
+    """
+    ene = float(data[-2]) - float(data[-1])
+    xyz = data[1:22]
+
+    outFile.write("energy xyz\n")
+    outFile.write(str(ene) + "\n")
+
+    for i in range(7):
+        for j in range(3):
+            outFile.write("\t" + str(xyz[i+j]))
+        outFile.write("\n")
+
