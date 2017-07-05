@@ -266,7 +266,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         :param X: The x values - numpy array of shape (N_samples, n_features)
         :param y: The true values for X - numpy array of shape (N_samples,)
         :return: r2 - between 0 and 1. Tells how good the correlation plot is. rmsekJmol - the root mean square error in
-        kJ/mol. maekJmol - the mean absolute error in kJ/mol.
+        kJ/mol. maekJmol - the mean absolute error in kJ/mol. lpo and lno - largest outliars in the predictions.
         """
 
         y_pred = self.predict(X)
@@ -275,7 +275,27 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         maeHa = mean_absolute_error(y, y_pred)
         rmsekJmol = rmseHa * 2625.50
         maekJmol = maeHa * 2625.50
-        return r2, rmsekJmol, maekJmol
+        # Largest positive/negative outlier
+        lpo_Ha, lno_Ha = self.largestOutliers(y, y_pred)
+        lpo_kJmol = lpo_Ha * 2625.50
+        lno_kJmol = lno_Ha * 2625.50
+
+        return r2, rmsekJmol, maekJmol, lpo_kJmol, lno_kJmol
+
+    def largestOutliers(self, y_true, y_pred):
+        """
+        This function calculates the larges positive and negative outliers from the predictions of the neural net.
+        :param y_true: The original, electronic structure energies
+        :param y_pred: The predicted energies from the neural net
+        :return: the largest positive and negative outlier in Hartree.
+        """
+        diff = y_pred - y_true
+        lpo_Ha = np.amax(diff)
+        lno_Ha = - np.amin(diff)
+
+        return lpo_Ha, lno_Ha
+
+
 
 
 # This example tests the module on fitting a simple quadratic function and then plots the results
