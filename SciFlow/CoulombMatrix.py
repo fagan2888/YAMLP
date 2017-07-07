@@ -1,5 +1,6 @@
 import numpy as np
 from numpy import linalg as LA
+from scipy.special import factorial
 
 class CoulombMatrix():
     """
@@ -203,6 +204,86 @@ class CoulombMatrix():
 
         return temp
 
+    def generatePRCM(self, y_data, numRep=2):
+        """
+        This function generates a coulomb matrix with randomisation but where only the coloumns of elements that are the
+        same are swapped around.
+        :param y_data: the y_data in a (n_samples,) shape
+        :param numRep: The largest number of swaps to do
+        :return: the new Coulomb matrix (n_samples*n, n_features) and the y array in shape (n_samples*min(n_perm, numRep),)
+        """
+        PRCM = []
+
+        for j in range(self.n_samples):
+            flatMat = self.coulMatrix[j, :]
+            currentMat = np.reshape(flatMat, (self.n_atoms, self.n_atoms))
+
+            # Check if there are two elements that are the same (check elements along diagonal)
+            diag = currentMat.diagonal()
+            idx_sort = np.argsort(diag)
+            sorted_diag = diag[idx_sort]
+            vals, idx_start, count = np.unique(sorted_diag, return_counts=True, return_index=True)
+
+            # Work out the number of possible permutations n_perm
+            permarr = factorial(count)
+            n_perm = int(np.prod(permarr))
+
+            # Decide which one is smaller, numRep or n_perm
+            if numRep >= n_perm:
+                isNumRepBigger = True
+            else:
+                isNumRepBigger = False
+
+            # Finding out which rows/columns need permuting. Each element of dupl_col is a list of the indexes of the
+            # columns that can be permuted.
+            dupl_col = []
+            for j in range(count.shape[0]):
+                dupl_ind = range(idx_start[j],idx_start[j]+count[j])
+                dupl_col.append(dupl_ind)
+
+            # Permute the appropriate indexes randmoly
+            if isNumRepBigger:
+                permut_idx = self.permutations(dupl_col, n_perm, self.n_atoms)
+            else:
+                permut_idx = self.permutations(dupl_col, numRep, self.n_atoms)
+
+            # Order the rows/coloumns in terms of smallest to largest diagonal element
+            currentMat = currentMat[idx_sort, :]
+            currentMat = currentMat[:, idx_sort]
+
+            # Apply the permutations that have been obtained to the rows and columns
+            for i in range(min(numRep,n_perm)):
+                currentMat = currentMat[permut_idx[i], :]
+                currentMat = currentMat[:, permut_idx[i]]
+                PRCM.append(self.trimAndFlat(currentMat))
+
+        # Turn PRCM into a numpy array of size (n_samples*min(n_perm, numRep), n_features)
+        PRCM = np.asarray(PRCM)
+
+        # Modify the shape of y
+        y_big = np.asarray(np.repeat(y,min(n_perm, numRep)))
+
+        return PRCM, y_big
+
+    def permutations(self, col_idx, num_perm, n_atoms):
+        """
+        This function takes a list of the columns that need permuting. It returns num_perm arrays of permuted indexes.
+        :param col_idx: list of list of columns that need swapping around
+        :param num_perm: number of permutations desired (int)
+        :param n_atoms: total number of atoms in the system
+        :return: an array of shape (num_perm, n_atoms) of permuted indexes.
+        """
+        all_perm = np.zeros((num_perm, n_atoms), dtype=np.int8)
+        temp = col_idx
+
+        for j in range(num_perm):
+            for i in range(len(col_idx)):
+                temp[i] = np.random.permutation(col_idx[i])
+            flat_temp = [item for sublist in temp for item in sublist]
+            all_perm[j,:] = flat_temp
+
+        return all_perm
+
     def plot(self, X, n=0):
         """
         This function plots a coulomb matrix that is contained in the X descriptor.
@@ -221,8 +302,9 @@ class CoulombMatrix():
 if __name__ == "__main__":
 
     def testMatrix():
-        X = [["H", 0.0, 0.0, 0.0, "H", 1.0, 0.0, 0.0, "C", 0.5, 0.5, 0.5], ["H", 0.1, 0.0, 0.0, "H", 0.9, 0.0, 0.0, "C", -0.5, -0.5, -0.5],
-                ["H", -0.1, 0.0, 0.0, "H", 1.1, 0.0, 0.0, "C", 1.0, 1.0, 1.0]]
+        X = [["H", 0.0, 0.0, 0.0, "H", 1.0, 0.0, 0.0, "C", 0.5, 0.5, 0.5, "C", 0.5, 0.7, 0.5, "N", 0.5, 0.5, 0.8 ],
+             ["H", 0.1, 0.0, 0.0, "H", 0.9, 0.0, 0.0, "C", -0.5, -0.5, -0.5, "C", 0.1, 0.5, 0.5, "N", 0.6, 0.5, 0.5,],
+                ["H", -0.1, 0.0, 0.0, "H", 1.1, 0.0, 0.0, "C", 1.0, 1.0, 1.0, "C", 0.3, 0.5, 0.3, "N", 1.5, 2.5, 0.5,]]
         y = np.array([4.0, 3.0, 1.0])
         return X, y
 
@@ -232,6 +314,7 @@ if __name__ == "__main__":
     CM.generateSCM()
     X, y = CM.generateRSCM(y, numRep=5)
     X = CM.generateTrimmedCM()
+    X_PRCM = CM.generatePRCM(y,numRep=3)
 
     # CM.plot(X)
 
