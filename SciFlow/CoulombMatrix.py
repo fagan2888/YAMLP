@@ -261,7 +261,7 @@ class CoulombMatrix():
         PRCM = np.asarray(PRCM)
 
         # Modify the shape of y
-        y_big = np.asarray(np.repeat(y,min(n_perm, numRep)))
+        y_big = np.asarray(np.repeat(y_data,min(n_perm, numRep)))
 
         return PRCM, y_big
 
@@ -284,16 +284,15 @@ class CoulombMatrix():
 
         return all_perm
 
-    def plot(self, X, n=0):
+    def plot(self, X):
         """
-        This function plots a coulomb matrix that is contained in the X descriptor.
-        :param X: The coulomb matrix for all samples
-        :param n: which line to plot of X
+        This function plots a coulomb matrix.
+        :param X: A flat coulomb matrix
         :return: None
         """
         import seaborn as sns
 
-        matrix = np.reshape(X[n], (self.n_atoms, self.n_atoms))
+        matrix = np.reshape(X, (self.n_atoms, self.n_atoms))
         sns.heatmap(data=matrix)
         sns.plt.show()
 
