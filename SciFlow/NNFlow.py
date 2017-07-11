@@ -5,14 +5,15 @@ Scikit learn.
 
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
-from sklearn.utils.validation import check_X_y, check_array, check_is_fitted
-from sklearn.utils.multiclass import unique_labels
+from sklearn.utils.validation import check_X_y, check_array
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import mean_absolute_error
 import tensorflow as tf
 import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
-import pickle
+import seaborn as sns
+import pandas as pd
+
 
 
 
@@ -295,35 +296,51 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
         return lpo_Ha, lno_Ha
 
+    def errorDistribution(self, X, y):
+        y_pred = self.predict(X)
+        diff_kJmol = (y - y_pred)*2625.50
+        df = pd.Series(diff_kJmol, name="Error (kJ/mol)")
+        hist = sns.distplot(df)
+        plt.show()
 
+    def correlationPlot(self, X, y, ylim=(1.90, 1.78), xlim=(1.90, 1.78)):
+        y_pred = self.predict(X)
+        df = pd.DataFrame()
+        df['High level calculated energies (Ha)'] = y
+        df['NN predicted energies (Ha)'] = y_pred
+        lm = sns.lmplot('High level calculated energies (Ha)', 'NN predicted energies (Ha)', data=df,
+                        scatter_kws={"s": 20, "alpha": 0.6}, line_kws={"alpha": 0.5})
+        lm.set(ylim=ylim)
+        lm.set(xlim=xlim)
 
 
 # This example tests the module on fitting a simple quadratic function and then plots the results
 
-# if __name__ == "__main__":
-#
-#     silvia = MLPRegFlow(hidden_layer_sizes=(5,), learning_rate_init=0.01, max_iter=5000, alpha=0)
-#     pickle.dump(silvia, open('../tests/model.pickl','wb'))
-    # x = np.arange(-2.0, 2.0, 0.1)
-    # X = np.reshape(x, (len(x), 1))
-    # y = np.reshape(X ** 3, (len(x),))
-    #
-    # estimator.fit(X, y)
-    # estimator.plotTrainCost()
-    # y_pred = estimator.predict(X)
-    #
-    # #  Visualisation of predictions
-    # fig2, ax2 = plt.subplots(figsize=(6,6))
-    # ax2.scatter(x, y, label="original", marker="o", c="r")
-    # ax2.scatter(x, y_pred, label="predictions", marker="o", c='b')
-    # ax2.set_xlabel('x')
-    # ax2.set_ylabel('y')
-    # ax2.legend()
-    #
-    # # Correlation plot
-    # fig3, ax3 = plt.subplots(figsize=(6,6))
-    # ax3.scatter(y, y_pred, label="CAS-SCF", marker="o", c="r")
-    # ax3.set_xlabel('original y')
-    # ax3.set_ylabel('prediction y')
-    #
-    # plt.show()
+if __name__ == "__main__":
+
+    estimator = MLPRegFlow(hidden_layer_sizes=(5,), learning_rate_init=0.01, max_iter=5000, alpha=0)
+    # pickle.dump(silvia, open('../tests/model.pickl','wb'))
+    x = np.arange(-2.0, 2.0, 0.1)
+    X = np.reshape(x, (len(x), 1))
+    y = np.reshape(X ** 3, (len(x),))
+
+    estimator.fit(X, y)
+    estimator.plotTrainCost()
+    y_pred = estimator.predict(X)
+
+    #  Visualisation of predictions
+    fig2, ax2 = plt.subplots(figsize=(6,6))
+    ax2.scatter(x, y, label="original", marker="o", c="r")
+    ax2.scatter(x, y_pred, label="predictions", marker="o", c='b')
+    ax2.set_xlabel('x')
+    ax2.set_ylabel('y')
+    ax2.legend()
+
+    # Correlation plot
+    fig3, ax3 = plt.subplots(figsize=(6,6))
+    ax3.scatter(y, y_pred, label="CAS-SCF", marker="o", c="r")
+    ax3.set_xlabel('original y')
+    ax3.set_ylabel('prediction y')
+    plt.show()
+
+    estimator.errorDistribution(X, y)
