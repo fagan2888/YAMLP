@@ -6,7 +6,7 @@ import time
 from datetime import datetime
 import matplotlib.pyplot as plt
 
-def fft_idx(X, k, cont="None"):
+def fft_idx(X, k):
 
     # Creating the matrix of the distances
     dist_mat_glob = np.zeros(shape=(X.shape[0], X.shape[0]))
@@ -17,32 +17,22 @@ def fft_idx(X, k, cont="None"):
             dist_mat_glob[i, j] = np.dot(distvec, distvec)
             dist_mat_glob[j, i] = np.dot(distvec, distvec)
 
+    print "Generated " + str(X.shape[0]) + " by " + str(X.shape[0]) + " distance matrix."
+
     n_samples = X.shape[0]
 
-    if cont=="None":
-        train_set = []
+    train_set = []
 
-        idx = np.int32(np.random.uniform(n_samples))
-        train_set.append(idx)
+    idx = np.int32(np.random.uniform(n_samples))
+    train_set.append(idx)
 
-        for i in range(1, k):
-            dist_list = []
-            for index in train_set:
-                dist_list.append(dist_mat_glob[index, :])
-            dist_set = np.amin(dist_list, axis=0)
-            dist_idx = np.argmax(dist_set)
-            train_set.append(dist_idx)
-    else:
-        train_set_np = np.load(cont)
-        train_set = train_set_np.tolist()
-        already_done = len(train_set)
-        for i in range(already_done, k):
-            dist_list = []
-            for index in train_set:
-                dist_list.append(dist_mat_glob[index, :])
-            dist_set = np.amin(dist_list, axis=0)
-            dist_idx = np.argmax(dist_set)
-            train_set.append(dist_idx)
+    for i in range(1, k):
+        dist_list = []
+        for index in train_set:
+            dist_list.append(dist_mat_glob[index, :])
+        dist_set = np.amin(dist_list, axis=0)
+        dist_idx = np.argmax(dist_set)
+        train_set.append(dist_idx)
 
     np.save("train_idx.npy",train_set)
     return train_set
@@ -172,7 +162,7 @@ if __name__ == "__main__":
 
     train_idx = fft_idx(X_coul[:500, :], 400)
     print train_idx
-    train_idx_2 = fft_idx(X_coul[:700, :], 600, cont="train_idx.npy")
+    train_idx_2 = fft_idx(X_coul[:700, :], 600)
     print train_idx_2
     print len(train_idx_2)
     print len(set(train_idx_2))
