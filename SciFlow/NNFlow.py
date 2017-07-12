@@ -312,6 +312,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                         scatter_kws={"s": 20, "alpha": 0.6}, line_kws={"alpha": 0.5})
         lm.set(ylim=ylim)
         lm.set(xlim=xlim)
+        plt.show()
 
 
 # This example tests the module on fitting a simple quadratic function and then plots the results
