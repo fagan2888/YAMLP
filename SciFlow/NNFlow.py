@@ -300,7 +300,9 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         y_pred = self.predict(X)
         diff_kJmol = (y - y_pred)*2625.50
         df = pd.Series(diff_kJmol, name="Error (kJ/mol)")
-        hist = sns.distplot(df)
+        # sns.set_style(style='white')
+        # sns.distplot(df, color="#f1ad1e")
+        # sns.plt.savefig("ErrorDist.png", transparent=True, dpi=800)
         plt.show()
 
     def correlationPlot(self, X, y, ylim=(1.90, 1.78), xlim=(1.90, 1.78)):
