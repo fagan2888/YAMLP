@@ -40,6 +40,7 @@ class CoulombMatrix():
         self.n_atoms = len(self.rawX[0])/4
         self.n_samples = len(self.rawX)
 
+
         self.coulMatrix = np.zeros((self.n_samples, self.n_atoms**2))
         self.__generateCM()
 
@@ -293,7 +294,8 @@ class CoulombMatrix():
         import seaborn as sns
 
         matrix = np.reshape(X, (self.n_atoms, self.n_atoms))
-        sns.heatmap(data=matrix)
+        sns.heatmap(data=matrix, cmap='YlOrRd', vmin=0, vmax=60)
+        # sns.plt.savefig("CM1.png", transparent=True, dpi=800)
         sns.plt.show()
 
 
@@ -309,12 +311,17 @@ if __name__ == "__main__":
 
     X, y = testMatrix()
     CM = CoulombMatrix(matrixX=X)
-    CM.generateES()
-    CM.generateSCM()
-    X, y = CM.generateRSCM(y, numRep=5)
-    X = CM.generateTrimmedCM()
-    X_PRCM = CM.generatePRCM(y,numRep=3)
+    # CM.generateES()
+    # CM.generateSCM()
+    # X, y = CM.generateRSCM(y, numRep=5)
+    # X = CM.generateTrimmedCM()
+    # X_PRCM = CM.generatePRCM(y,numRep=3)
+    X_coul = CM.getCM()
 
-    # CM.plot(X)
+    # import ImportData
+    # X, y, Q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingNN/dataSets/PBE_B3LYP/pbe_b3lyp_partQ_rel.csv")
+    # CM = CoulombMatrix(matrixX=X)
+    # X_coul = CM.getCM()
+    # CM.plot(X_coul[2])
 
 
