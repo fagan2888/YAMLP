@@ -1,6 +1,7 @@
 import numpy as np
 import ImportData
 import CoulombMatrix
+from scipy.special import factorial
 
 class PartialCharges():
 
@@ -14,87 +15,64 @@ class PartialCharges():
         self.rawQ = matrixQ
         self.rawY = matrixY
 
+        self.Z = {
+            'C': 6.0,
+            'H': 1.0,
+            'N': 7.0
+        }
+
+        self.ene_pbe = {
+            'H': 0.46437552,
+            'C': 37.19463954,
+            'N': 53.68235533
+        }
+
+        self.ene_ccsd = {
+            'H': 0.49984482,
+            'C': 37.72993039,
+            'N': 54.41916828
+        }
+
         self.n_atoms = int(len(self.rawX[0])/4)
         self.n_samples = len(self.rawX)
+
+        self.diag_hyb_1 = np.zeros(self.n_atoms)
+        self.diag_hyb_2 = np.zeros(self.n_atoms)
 
         self.partQCM = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5)))
         self.partQCM24 = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5)))
         self.diagQ = np.zeros((self.n_samples, self.n_atoms))
 
-    def generatePCCM(self, numRep=1):
+    def __generate_pccm(self):
         """
-        This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
-        are q_i^2 while the off diagonal elements are q_i*q_j / R_ij. The descriptor is randomised in the same way as
-        the randomly sorted coulomb matrix and becomes an array of size (n_samples*numRep, n_atoms^2)
-        :numRep: number of randomly sorted matrices to generate per sample data - int
-        :return: numpy array of size (n_samples*numRep, n_atoms*(n_atoms+1)*0.5),
-        y: extended matrix of energies, numpy array of size (n_samples*numRep,)
+        This function makes the (n_samples, n_atoms^2) partial charge coulomb matrix where the diagonal elements are
+        the qi^2. It also calculates the diagonal elements for the hybrid partial charge matrix.
+        :return: (n_samples, n_atoms^2) numpy array
         """
+        pccm = np.zeros((self.n_samples, int(self.n_atoms * self.n_atoms)))
 
         # This is a coulomb matrix for one particular sample in the dataset
         indivPCCM = np.zeros((self.n_atoms, self.n_atoms))
-        # This is a matrix containing all the CM for each sample in full (each CM has size n_atoms**2)
-        fullPCCM = np.zeros((self.n_samples, self.n_atoms**2))
         sampleCount = 0
 
         for i in range(self.n_samples):
             # Making a vector with the coordinates of the atoms in this data sample
             coord = []
+            labels = ""  # This is a string containing all the atom labels
             currentSamp = self.rawX[i]
-            for j in range(0,len(currentSamp),4):
-                coord.append(np.asarray([currentSamp[j+1], currentSamp[j+2], currentSamp[j+3]]))
 
-            #  Populating the diagonal elements
-            for j in range(self.n_atoms):
-                indivPCCM[j, j] = self.rawQ[i][j]**2
-
-            # Populating the off-diagonal elements
-            for j in range(self.n_atoms - 1):
-                for k in range(j + 1, self.n_atoms):
-                    # Distance between two atoms
-                    distanceVec = coord[j] - coord[k]
-                    distance = np.sqrt(np.dot(distanceVec, distanceVec))
-                    # Putting the partial charge in
-                    indivPCCM[j, k] = self.rawQ[i][j]*self.rawQ[i][k]/ distance
-                    indivPCCM[k, j] = indivPCCM[j, k]
-
-
-            # The partial charge CM for each sample is flattened and added to the total matrix
-            fullPCCM[sampleCount, :] = indivPCCM.flatten()
-            sampleCount += 1
-
-        #  This randomises the coulomb matrix and trims away the duplicate values in the matrix since it is a diagonal matrix
-        self.partQCM, self.y = self.__randomSort(fullPCCM, self.rawY, numRep)
-
-        print "Generated the partial charge coulomb matrix."
-
-        return self.partQCM, self.y
-
-    def generatePCCM24(self, numRep=1):
-        """
-        This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
-        are 0.5*q_i^2.4 while the off diagonal elements are q_i*q_j / R_ij.
-        :numRep: number of randomly sorted matrices to generate per sample data - int
-        :return: numpy array of size (n_samples, n_atoms**2), y: extended matrix of energies, numpy array of size
-        (n_samples*numRep,)
-        """
-
-        # This is a coulomb matrix for one particular sample in the dataset
-        indivPCCM = np.zeros((self.n_atoms, self.n_atoms))
-        sampleCount = 0
-        # This is a matrix containing all the CM for each sample in full (each CM has size n_atoms**2)
-        fullPCCM24 = np.zeros((self.n_samples, self.n_atoms ** 2))
-
-        for i in range(self.n_samples):
-            # Making a vector with the coordinates of the atoms in this data sample
-            coord = []
-            currentSamp = self.rawX[i]
             for j in range(0, len(currentSamp), 4):
+                labels += currentSamp[j]
                 coord.append(np.asarray([currentSamp[j + 1], currentSamp[j + 2], currentSamp[j + 3]]))
+
+            # Calculating the diagonal elements for the hybrid 1 and 2 partial charge coulomb matrix
+            for j in range(self.n_atoms):
+                self.diag_hyb_1[j] = 0.5 * self.Z[labels[j]] ** 2.4
+                self.diag_hyb_2[j] = self.ene_pbe[labels[j]]
 
             # Populating the diagonal elements
             for j in range(self.n_atoms):
-                indivPCCM[j, j] = 0.5 * self.rawQ[i][j] ** 2.4
+                indivPCCM[j, j] = self.rawQ[i][j] ** 2
 
             # Populating the off-diagonal elements
             for j in range(self.n_atoms - 1):
@@ -107,21 +85,43 @@ class PartialCharges():
                     indivPCCM[k, j] = indivPCCM[j, k]
 
             # The partial charge CM for each sample is flattened and added to the total matrix
-            fullPCCM24[sampleCount, :] = indivPCCM.flatten()
+            pccm[sampleCount, :] = indivPCCM.flatten()
             sampleCount += 1
 
-        self.partQCM24, self.y = self.__randomSort(fullPCCM24, self.rawY, numRep)
+        return pccm
 
-        print "Generated the partial charge coulomb matrix (diagonal ^2.4)."
+    def get_pccm(self):
+        """
+        This function returns the partial charge coulomb matrix generated by __generate_pccm()
+        :return: partial charge coulomb matrix numpy array (n_samples, n_atoms^2)
+        """
+        return self.pccm
 
-        return self.partQCM24, self.y
+    def generatePCCM(self, numRep=1):
+        """
+        This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
+        are q_i^2 while the off diagonal elements are q_i*q_j / R_ij. The descriptor is randomised in the same way as
+        the randomly sorted coulomb matrix and becomes an array of size (n_samples*numRep, n_atoms^2)
+        :numRep: number of randomly sorted matrices to generate per sample data - int
+        :return: numpy array of size (n_samples*numRep, n_atoms*(n_atoms+1)*0.5),
+        y: extended matrix of energies, numpy array of size (n_samples*numRep,)
+        """
+
+        pccm = self.__generate_pccm()
+
+        #  This randomises the coulomb matrix and trims away the duplicate values in the matrix since it is a diagonal matrix
+        self.partQCM, self.y = self.__randomSort(pccm, self.rawY, numRep)
+
+        print "Generated the partial charge coulomb matrix."
+
+        return self.partQCM, self.y
 
     def __randomSort(self, X, y, numRep):
         """
-        This function randomly sorts the rows of the coulomb matrices depending on their column norm. It generates a
+        This function randomly sorts the rows and columns of the coulomb matrices depending on their column norm. It generates a
         matrix of size (n_samples*numRep, n_atoms^2)
         :numRep: The number of randomly sorted matrices to be generated for each data sample.
-        :return: ranSort: numpy array of size (n_samples*numRep, n_atoms^2),
+        :return: ranSort: numpy array of size (n_samples*numRep, n_atoms*(n_atoms+1)/2),
                 y_bigdata: a numpy array of energy values of size (N_samples*numRep,)
         """
 
@@ -156,7 +156,7 @@ class PartialCharges():
                 tempRandCM = tempMat[permutations, :]
                 tempRandCM = tempRandCM[:,permutations]
                 # Adding flattened randomly sorted Coulomb matrix to the final descriptor matrix
-                ranSort[counter, :] = self.trimAndFlat(tempRandCM)
+                ranSort[counter, :] = self.__trimAndFlat(tempRandCM)
                 counter = counter + 1
 
             # Copying multiple values of the energies
@@ -164,67 +164,7 @@ class PartialCharges():
 
         return ranSort, y_bigdata
 
-    def generateDiagPCCM(self):
-        """
-        This function generates a descriptor that is a vector of q_i^2. It has the size of (n_samples, n_atoms).
-        :return: numpy matrix of size (n_sample, n_atoms)
-        """
-
-        for i in range(self.n_samples):
-            partQ = self.rawQ[i]
-            for j in range(self.n_atoms):
-                self.diagQ[i][j] = partQ[j]**2
-
-        print "Generated the diagonal of the partial charge coulomb matrix."
-
-        return self.diagQ
-
-    def generateUnrandomisedPCCM(self):
-        """
-        This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
-        are q_i^2 while the off diagonal elements are q_i*q_j / R_ij. The descriptor is NOT randomised.
-        :return:
-        X: numpy array of size (n_samples, n_atoms * (n_atoms+1) * 0.5),
-        y: extended matrix of energies, numpy array of size (n_samples,)
-        """
-
-        # This is a coulomb matrix for one particular sample in the dataset
-        indivPCCM = np.zeros((self.n_atoms, self.n_atoms))
-        # This is a matrix containing all the CM for each sample in full (each CM has size n_atoms**2)
-        self.trimPCCM = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms + 1) * 0.5)))
-        sampleCount = 0
-        self.y = self.rawY
-
-        for i in range(self.n_samples):
-            # Making a vector with the coordinates of the atoms in this data sample
-            coord = []
-            currentSamp = self.rawX[i]
-            for j in range(0, len(currentSamp), 4):
-                coord.append(np.asarray([currentSamp[j + 1], currentSamp[j + 2], currentSamp[j + 3]]))
-
-            # Populating the diagonal elements
-            for j in range(self.n_atoms):
-                indivPCCM[j, j] = self.rawQ[i][j] ** 2
-
-            # Populating the off-diagonal elements
-            for j in range(self.n_atoms - 1):
-                for k in range(j + 1, self.n_atoms):
-                    # Distance between two atoms
-                    distanceVec = coord[j] - coord[k]
-                    distance = np.sqrt(np.dot(distanceVec, distanceVec))
-                    # Putting the partial charge in
-                    indivPCCM[j, k] = self.rawQ[i][j] * self.rawQ[i][k] / distance
-                    indivPCCM[k, j] = indivPCCM[j, k]
-
-            # The partial charge CM for each sample is flattened and added to the total matrix
-            self.trimPCCM[sampleCount, :] = self.trimAndFlat(indivPCCM)
-            sampleCount += 1
-
-        print "Generated the NON-randomised partial charge coulomb matrix."
-
-        return self.trimPCCM, self.y
-
-    def trimAndFlat(self, X):
+    def __trimAndFlat(self, X):
         """
         This function takes a coulomb matrix and trims it so that only the upper triangular part of the matrix is kept.
         It returns the flattened trimmed array.
@@ -242,9 +182,139 @@ class PartialCharges():
 
         return temp
 
+    def __partial_randomisation(self, X, y_data, numRep):
+        """
+        This function generates a coulomb matrix with randomisation but where only the coloumns of elements that are the
+        same are swapped around.
+        :param X: the (n_samples, n_atoms^2) coulomb matrix to randomise and trim
+        :param y_data: the y_data in a (n_samples,) shape
+        :param numRep: The largest number of swaps to do
+        :return: the new Coulomb matrix (n_samples*n, n_features) and the y array in shape (n_samples*min(n_perm, numRep),)
+        """
+        PRCM = []
+
+        for j in range(self.n_samples):
+            flatMat = X[j]
+            currentMat = np.reshape(flatMat, (self.n_atoms, self.n_atoms))
+
+            # Check if there are two elements that are the same (check elements along diagonal)
+            diag = currentMat.diagonal()
+            idx_sort = np.argsort(diag)
+            sorted_diag = diag[idx_sort]
+            vals, idx_start, count = np.unique(sorted_diag, return_counts=True, return_index=True)
+
+            # Work out the number of possible permutations n_perm
+            permarr = factorial(count)
+            n_perm = int(np.prod(permarr))
+
+            # Decide which one is smaller, numRep or n_perm
+            if numRep >= n_perm:
+                isNumRepBigger = True
+            else:
+                isNumRepBigger = False
+
+            # Finding out which rows/columns need permuting. Each element of dupl_col is a list of the indexes of the
+            # columns that can be permuted.
+            dupl_col = []
+            for j in range(count.shape[0]):
+                dupl_ind = range(idx_start[j],idx_start[j]+count[j])
+                dupl_col.append(dupl_ind)
+
+            # Permute the appropriate indexes randmoly
+            if isNumRepBigger:
+                permut_idx = self.permutations(dupl_col, n_perm, self.n_atoms)
+            else:
+                permut_idx = self.permutations(dupl_col, numRep, self.n_atoms)
+
+            # Order the rows/coloumns in terms of smallest to largest diagonal element
+            currentMat = currentMat[idx_sort, :]
+            currentMat = currentMat[:, idx_sort]
+
+            # Apply the permutations that have been obtained to the rows and columns
+            for i in range(min(numRep,n_perm)):
+                currentMat = currentMat[permut_idx[i], :]
+                currentMat = currentMat[:, permut_idx[i]]
+                PRCM.append(self.__trimAndFlat(currentMat))
+
+        # Turn PRCM into a numpy array of size (n_samples*min(n_perm, numRep), n_features)
+        PRCM = np.asarray(PRCM)
+
+        # Modify the shape of y
+        y_big = np.asarray(np.repeat(y_data,min(n_perm, numRep)))
+
+        return PRCM, y_big
+
+    def permutations(self, col_idx, num_perm, n_atoms):
+        """
+        This function takes a list of the columns that need permuting. It returns num_perm arrays of permuted indexes.
+        :param col_idx: list of list of columns that need swapping around
+        :param num_perm: number of permutations desired (int)
+        :param n_atoms: total number of atoms in the system
+        :return: an array of shape (num_perm, n_atoms) of permuted indexes.
+        """
+        all_perm = np.zeros((num_perm, n_atoms), dtype=np.int8)
+        temp = col_idx
+
+        for j in range(num_perm):
+            for i in range(len(col_idx)):
+                temp[i] = np.random.permutation(col_idx[i])
+            flat_temp = [item for sublist in temp for item in sublist]
+            all_perm[j, :] = flat_temp
+
+        return all_perm
+
+    def hybrid_pccm_1(self, numRep=5):
+        """
+        The off-diagonal elements are qiqj/rij the diagonal elements are the 0.5*Z^2.4
+        :param numReps: number of randomisations to do per sample
+        :return: (n_samples*n, n_features) numpy array with partial charge coulomb matrix. Y_big: numpy array of size
+        (n_samples*min(n_perm, numRep).
+        """
+        pccm = self.__generate_pccm()
+
+        # Modifying the diagonal elements to be the nuclear charge ones
+        for i in range(pccm.shape[0]):
+            for j in range(self.n_atoms):
+                pccm[i][self.n_atoms*j+j] = self.diag_hyb_1[j]
+
+        # Doing partial randomisation and trimming
+        trim_rand_pccm, y_big = self.__partial_randomisation(pccm, self.rawY, numRep)
+
+        return trim_rand_pccm, y_big
+
+    def hybrid_pccm_2(self, numRep=5):
+        """
+        The off-diagonal elements are qiqj/rij the diagonal elements are the calculated PBE energies of the free atoms.
+        :param numReps: number of randomisations to do per sample
+        :return: (n_samples*n, n_features) numpy array with partial charge coulomb matrix. Y_big: numpy array of size
+        (n_samples*min(n_perm, numRep).
+        """
+        pccm = self.__generate_pccm()
+
+        # Modifying the diagonal elements to be the nuclear charge ones
+        for i in range(pccm.shape[0]):
+            for j in range(self.n_atoms):
+                pccm[i][7 * j + j] = self.diag_hyb_2[j]
+
+        # Doing partial randomisation and trimming
+        trim_rand_pccm, y_big = self.__partial_randomisation(pccm, self.rawY, numRep)
+
+        return trim_rand_pccm, y_big
+
+
+
 if __name__ == "__main__":
-    X, y, q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/pbe_b3lyp_partQ.csv")
-    mat = PartialCharges(X, y, q)
-    descriptor = mat.generateUnrandomisedPCCM()
-    print descriptor[:][0]
-    
+    def testMatrix():
+        X = [["H", 0.0, 0.0, 0.0, "H", 1.0, 0.0, 0.0, "C", 0.5, 0.5, 0.5, "C", 0.5, 0.7, 0.5, "N", 0.5, 0.5, 0.8 ],
+             ["H", 0.1, 0.0, 0.0, "H", 0.9, 0.0, 0.0, "C", -0.5, -0.5, -0.5, "C", 0.1, 0.5, 0.5, "N", 0.6, 0.5, 0.5,],
+                ["H", -0.1, 0.0, 0.0, "H", 1.1, 0.0, 0.0, "C", 1.0, 1.0, 1.0, "C", 0.3, 0.5, 0.3, "N", 1.5, 2.5, 0.5,]]
+        y = np.array([4.0, 3.0, 1.0])
+        Q = np.array([[1.0, 1.0, 6.0, 6.0, 7.0], [1.0, 1.0, 6.0, 6.0, 7.0], [1.0, 1.0, 6.0, 6.0, 7.0]])
+        return X, y, Q
+
+    X, y, Q = testMatrix()
+    CM = PartialCharges(X, y, Q)
+    CM.hybrid_pccm_1()
+
+    # X, y, q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/pbe_b3lyp_partQ.csv")
+    # mat = PartialCharges(X, y, q)
