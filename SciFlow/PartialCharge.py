@@ -97,7 +97,7 @@ class PartialCharges():
         """
         return self.pccm
 
-    def generatePCCM(self, numRep=1):
+    def generatePCCM(self, numRep=5):
         """
         This function generates the new CM that has partial charges instead of the nuclear charges. The diagonal elements
         are q_i^2 while the off diagonal elements are q_i*q_j / R_ij. The descriptor is randomised in the same way as
@@ -110,9 +110,10 @@ class PartialCharges():
         pccm = self.__generate_pccm()
 
         #  This randomises the coulomb matrix and trims away the duplicate values in the matrix since it is a diagonal matrix
-        self.partQCM, self.y = self.__randomSort(pccm, self.rawY, numRep)
+        # self.partQCM, self.y = self.__randomSort(pccm, self.rawY, numRep)
+        self.partQCM, self.y = self.__partial_randomisation(pccm, self.rawY, numRep)
 
-        print "Generated the partial charge coulomb matrix."
+        print "Generated the partial charge coulomb matrix (partially randomised)."
 
         return self.partQCM, self.y
 
@@ -314,7 +315,7 @@ if __name__ == "__main__":
 
     X, y, Q = testMatrix()
     CM = PartialCharges(X, y, Q)
-    CM.hybrid_pccm_1()
+    CM.generatePCCM()
 
     # X, y, q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingdata/per-user-trajectories/CH4+CN/pruning/dataSets/pbe_b3lyp_partQ.csv")
     # mat = PartialCharges(X, y, q)
