@@ -111,7 +111,8 @@ class PartialCharges():
 
         #  This randomises the coulomb matrix and trims away the duplicate values in the matrix since it is a diagonal matrix
         # self.partQCM, self.y = self.__randomSort(pccm, self.rawY, numRep)
-        self.partQCM, self.y = self.__partial_randomisation(pccm, self.rawY, numRep)
+        chem_identity = self.diag_hyb_1         # Needed to sort the matrix properly by chemical identity
+        self.partQCM, self.y = self.__partial_randomisation(pccm, self.rawY, numRep, chem_identity)
 
         print "Generated the partial charge coulomb matrix (partially randomised)."
 
@@ -183,7 +184,7 @@ class PartialCharges():
 
         return temp
 
-    def __partial_randomisation(self, X, y_data, numRep):
+    def __partial_randomisation(self, X, y_data, numRep, *args):
         """
         This function generates a coulomb matrix with randomisation but where only the coloumns of elements that are the
         same are swapped around.
@@ -199,7 +200,10 @@ class PartialCharges():
             currentMat = np.reshape(flatMat, (self.n_atoms, self.n_atoms))
 
             # Check if there are two elements that are the same (check elements along diagonal)
-            diag = currentMat.diagonal()
+            if len(args[0]) == 0:
+                diag = currentMat.diagonal()
+            else:
+                diag = args[0]
             idx_sort = np.argsort(diag)
             sorted_diag = diag[idx_sort]
             vals, idx_start, count = np.unique(sorted_diag, return_counts=True, return_index=True)
