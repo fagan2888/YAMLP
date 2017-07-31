@@ -297,6 +297,12 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         return lpo_Ha, lno_Ha
 
     def errorDistribution(self, X, y):
+        """
+        This function plots histograms of how many values have an error in a certain data range.
+        :param X: numpy array of size (n_samples, n_features)
+        :param y: numpy array of size (n_samples,)
+        :return: None
+        """
         y_pred = self.predict(X)
         diff_kJmol = (y - y_pred)*2625.50
         df = pd.Series(diff_kJmol, name="Error (kJ/mol)")
@@ -306,6 +312,14 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         plt.show()
 
     def correlationPlot(self, X, y, ylim=(1.90, 1.78), xlim=(1.90, 1.78)):
+        """
+        This function plots a correlation plot of the values that are in the data set and the NN predictions.
+        :param X: numpy array of size (n_samples, n_features)
+        :param y: numpy array of size (n_samples,)
+        :param ylim: The y range in which to plot the values
+        :param xlim: The x range in which to plot the values
+        :return: None
+        """
         y_pred = self.predict(X)
         df = pd.DataFrame()
         df['High level calculated energies (Ha)'] = y
@@ -317,6 +331,10 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         plt.show()
 
     def plotWeights(self):
+        """
+        This function plots the weights of the first layer of the neural network.
+        :return: None
+        """
 
         w1_square_tot = []
 
@@ -347,6 +365,12 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         sns.plt.show()
 
     def reshape_triang(self, X, dim):
+        """
+        This function reshapes a flattened triangular matrix back to a diagonal matrix.
+        :param X: numpy array of shape (n_atoms*(n_atoms+1)/2, )
+        :param dim: n_feat (int)
+        :return: numpy array of shape (n_atoms, n_atoms)
+        """
 
         x_square = np.zeros((dim, dim))
         counter = 0
