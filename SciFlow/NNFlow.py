@@ -316,6 +316,51 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         lm.set(xlim=xlim)
         plt.show()
 
+    def plotWeights(self):
+
+        w1_square_tot = []
+
+        for i in range(self.hidden_layer_sizes[0]):
+            w1_square = self.reshape_triang(self.w1[i], 7)
+            w1_square_tot.append(w1_square)
+
+        n = 7
+        additional = n**2 - self.hidden_layer_sizes[0]
+
+        fig, axn = plt.subplots(n, n, sharex=True, sharey=True)
+        fig.set_size_inches(11.7, 8.27)
+        cbar_ax = fig.add_axes([.91, .3, .03, .4])
+        counter = 0
+
+        for i, ax in enumerate(axn.flat):
+            df = pd.DataFrame(w1_square_tot[counter])
+            ax.set(xticks=[], yticks=[])
+            sns.heatmap(df, ax=ax, cbar=i == 0,
+                        vmax=0, vmin=-0.1,
+                        cbar_ax=None if i else cbar_ax)
+            counter = counter + 1
+            if counter >= self.hidden_layer_sizes[0]:
+                break
+
+        fig.tight_layout(rect=[0, 0, 0.9, 1])
+
+        sns.plt.show()
+
+    def reshape_triang(self, X, dim):
+
+        x_square = np.zeros((dim, dim))
+        counter = 0
+        for i in range(dim):
+            for j in range(i, dim):
+                x_square[i, j] = X[counter]
+                x_square[j, i] = X[counter]
+                counter = counter + 1
+
+        return x_square
+
+
+
+
 
 # This example tests the module on fitting a simple quadratic function and then plots the results
 
@@ -347,3 +392,4 @@ if __name__ == "__main__":
     plt.show()
 
     estimator.errorDistribution(X, y)
+
