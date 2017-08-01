@@ -17,6 +17,7 @@ import pandas as pd
 
 
 
+
 class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
     def __init__(self, hidden_layer_sizes=(0,), n_units=45, alpha=0.0001, batch_size="auto",
@@ -368,7 +369,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function reshapes a flattened triangular matrix back to a diagonal matrix.
         :param X: numpy array of shape (n_atoms*(n_atoms+1)/2, )
-        :param dim: n_feat (int)
+        :param dim: n_atoms (int)
         :return: numpy array of shape (n_atoms, n_atoms)
         """
 
@@ -376,11 +377,117 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         counter = 0
         for i in range(dim):
             for j in range(i, dim):
-                x_square[i, j] = X[counter]
-                x_square[j, i] = X[counter]
+                x_square[i][j] = X[counter]
+                x_square[j][i] = X[counter]
                 counter = counter + 1
 
         return x_square
+
+    def __vis_input(self, initial_guess):
+
+        initial_guess = np.reshape(initial_guess, newshape=(1, initial_guess.shape[0]))
+        input_x = tf.Variable(initial_guess, dtype=tf.float32)
+        activations = []
+        iterations = 5000
+        x_square_tot = []
+
+        for node in range(self.hidden_layer_sizes[0]):
+
+            # Calculating the activation of the first layer
+            w1_node = tf.constant(self.w1[node], shape=(1,self.n_feat))
+            b1_node = tf.constant(self.b1[node])
+            z1 = tf.add(tf.matmul(tf.abs(input_x), tf.transpose(w1_node)), b1_node)
+            a1 = tf.nn.sigmoid(z1)
+
+            # Function to maximise a1
+            optimiser = tf.train.AdamOptimizer(learning_rate=0.01).minimize(-a1)
+
+            # Initialising the model
+            init = tf.global_variables_initializer()
+
+
+            # Running the graph
+            with tf.Session() as sess:
+                sess.run(init)
+
+                for i in range(iterations):
+                    sess.run(optimiser)
+
+                temp_a1 = sess.run(a1)
+                activations.append(temp_a1)     # Calculating the activation for checking later if a node has converged
+                final_x = sess.run(input_x)     # Storing the best input
+
+            x_square = self.reshape_triang(final_x[0,:], 7)
+            x_square_tot.append(x_square)
+
+        return x_square_tot
+
+    def vis_input_matrix(self, initial_guess):
+
+        x_square_tot = self.__vis_input(initial_guess)
+
+        n = 7
+        additional = n ** 2 - self.hidden_layer_sizes[0]
+
+        fig, axn = plt.subplots(n, n, sharex=True, sharey=True)
+        fig.set_size_inches(11.7, 8.27)
+        cbar_ax = fig.add_axes([.91, .3, .03, .4])
+        counter = 0
+
+        for i, ax in enumerate(axn.flat):
+            df = pd.DataFrame(x_square_tot[counter])
+            ax.set(xticks=[], yticks=[])
+            sns.heatmap(df, ax=ax, cbar=i == 0, cmap='RdYlGn',
+                        # vmax=1, vmin=-1,
+                        cbar_ax=None if i else cbar_ax)
+            counter = counter + 1
+            if counter >= self.hidden_layer_sizes[0]:
+                break
+
+        fig.tight_layout(rect=[0, 0, 0.9, 1])
+
+        sns.plt.show()
+
+    def vis_input_network(self, initial_guess):
+        import networkx as nx
+
+        x_square_tot = self.__vis_input(initial_guess)
+
+        fig = plt.figure(figsize=(10, 8))
+        for i in range(49):
+            if i >= self.hidden_layer_sizes[0]:
+                break
+            fig.add_subplot(7,7,1+i)
+            A = np.matrix(x_square_tot[i])
+            graph2 = nx.from_numpy_matrix(A, parallel_edges=False)
+            # nodes and their label
+            pos = {0: np.array([0.46887886, 0.06939788]), 1: np.array([0, 0.26694294]),
+                   2: np.array([0.3, 0.56225267]),
+                   3: np.array([0.13972517, 0.]), 4: np.array([0.6, 0.9]), 5: np.array([0.27685853, 0.31976436]),
+                   6: np.array([0.72, 0.9])}
+            labels = {}
+            labels[0] = 'H'
+            labels[1] = 'H'
+            labels[2] = 'H'
+            labels[3] = 'H'
+            labels[4] = 'C'
+            labels[5] = 'C'
+            labels[6] = 'N'
+            node_size = np.zeros(7)
+            for i in range(7):
+                node_size[i] =  abs(graph2[i][i]['weight'])*5
+            nx.draw_networkx_nodes(graph2, pos, node_size=node_size)
+            nx.draw_networkx_labels(graph2, pos, labels=labels, font_size=20, font_family='sans-serif')
+            # edges
+            edgewidth = [d['weight']*0.3 for (u, v, d) in graph2.edges(data=True)]
+            nx.draw_networkx_edges(graph2, pos, width=edgewidth)
+            plt.axis('off')
+            # plt.savefig("weighted_graph.png")  # save as png
+
+        plt.show()  # display
+
+
+
 
 
 
