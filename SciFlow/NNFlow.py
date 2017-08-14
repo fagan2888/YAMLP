@@ -19,36 +19,53 @@ import pandas as pd
 
 
 class MLPRegFlow(BaseEstimator, ClassifierMixin):
+    """
+    Neural-network with one hidden layer to do regression.
+    This model optimises the squared error function using the Adam optimiser.
 
-    def __init__(self, hidden_layer_sizes=(0,), n_units=45, alpha=0.0001, batch_size="auto",
-                 learning_rate="constant", learning_rate_init=0.001, power_t=0.5, max_iter=80, shuffle=True,
-                 random_state=None, tol=1e-4, verbose=False, momentum=0.9, nesterovs_momentum=True,
-                 early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-8):
+    Parameters
+    ----------
+
+    hidden_layer_sizes: tuple, length = number of hidden layers, default (0,)
+        The ith element represents the number of neurons in the ith
+        hidden layer. In this version, only one hidden layer is supported, so it shouldn't hav
+        length larger than 1.
+
+    n_units: int, default 45
+        Number of neurons in the first hidden layer. This parameter has been added as a hack to make it work with
+        Osprey.
+
+    alpha: float, default 0.0001
+        L2 penalty (regularization term) parameter.
+
+    batch_size: int, default 'auto'
+        Size of minibatches for stochastic optimizers.
+        If the solver is 'lbfgs', the classifier will not use minibatch.
+        When set to "auto", `batch_size=min(200, n_samples)`
+
+    learning_rate_init: double, default 0.001
+        The value of the learning rate in the numerical minimisation.
+
+    max_iter: int, default 200
+        Total number of iterations that will be carried out during the training process.
+
+    """
+
+    def __init__(self, hidden_layer_sizes=(0,), n_units=45, alpha=0.0001, batch_size='auto', learning_rate_init=0.001,
+                 max_iter=80):
 
         # Initialising the parameters
         self.alpha = alpha
         self.batch_size = batch_size
-        self.learning_rate = learning_rate
         self.learning_rate_init = learning_rate_init
-        self.power_t = power_t
         self.max_iter = max_iter
+
         # This is needed for Osprey, because you can only do parameter optimisation by passing integers or floats,
         # not tuples. So here we need a way of dealing with this.
         if hidden_layer_sizes == (0,):
             self.hidden_layer_sizes = (n_units,)
         else:
             self.hidden_layer_sizes = hidden_layer_sizes
-        self.shuffle = shuffle
-        self.random_state = random_state
-        self.tol = tol
-        self.verbose = verbose
-        self.momentum = momentum
-        self.nesterovs_momentum = nesterovs_momentum
-        self.early_stopping = early_stopping
-        self.validation_fraction = validation_fraction
-        self.beta_1 = beta_1
-        self.beta_2 = beta_2
-        self.epsilon = epsilon
 
         # Initialising parameters needed for the Tensorflow part
         self.w1 = 0
@@ -58,13 +75,25 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         self.alreadyInitialised = False
         self.trainCost = []
         self.testCost = []
+        self.isVisReady = False
 
     def fit(self, X, y, *test):
         """
         Fit the model to data matrix X and target y.
-        :param X: {array-like, sparse matrix}, shape (n_samples, n_features) - The input data.
-        :param y: array-like, shape (n_samples,) - The target values
-        :return: None
+
+        Parameters
+        ----------
+
+        X: array of shape (n_samples, n_features)
+            This contains the input data with samples in the rows and features in the columns.
+
+        y: array of shape (n_samples,)
+            This contains the target values for each sample in the X matrix.
+
+        Returns
+        -------
+        None
+
         """
 
         print "Starting the fitting process ... \n"
@@ -85,8 +114,8 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
         # Check that the architecture has only 1 hidden layer
         if len(self.hidden_layer_sizes) != 1:
-            print "Error: This model currently only works with one hidden layer. "
-            return None
+            raise ValueError("hidden_layer_sizes expected a tuple of size 1, it has one of size %d. "
+                             "This model currently only supports one hidden layer. " % (len(self.hidden_layer_sizes)))
 
         self.n_feat = X.shape[1]
         self.n_samples = X.shape[0]
@@ -147,9 +176,20 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
     def modelNN(self, X, parameters):
         """
         This function calculates the model neural network
-        :param X: This is the data to be used to generate the model
-        :param parameters: these are the weights and the biases, arranged as a list of tf.Variables
-        :return: it returns a tensor with the model
+
+        Parameters
+        ----------
+
+        X: array of shape (n_samples, n_features)
+            This contains the input data with samples in the rows and features in the columns.
+
+        parameters: array of TensorFlow variables of shape (2*len(hidden_layer_sizes+1), )
+            It contains the weights and the biases for each hidden layer and the output layer.
+
+        Returns
+        -------
+        A Tensor with the model of the neural network.
+
         """
 
         # Definition of the model
@@ -159,30 +199,42 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
         return model
 
-    def costReg(self, model, Y_data, parameters, regu):
+    def costReg(self, model, Y_data, weights, regu):
         """
-        This function calculates the cost function.
-        :param model: This is the tensor with the structure of the neural network
-        :param Y_data: The Y part of the training data (it is a tensorflow place holder)
-        :param parameters: a list of TF global_variables with the weights.
-        :param regu: the regularisation parameter
-        :return: it returns the cost function (TF global_variable).
+        This function calculates the squared error cost function with L2 regularisation.
+
+        Parameters
+        ----------
+        model: tensor
+            This tensor contains the neural network model.
+
+        Y_data: TensorFlow Place holder
+            This tensor contains the y part of the data once the graph is initialised.
+
+        weights: array of TensorFlow variables of shape (len(hidden_layer_sizes+1), )
+            It contains the weights for each hidden layer and the output layer.
+
+        regu: float
+            The parameter that tunes the amount of regularisation.
+
+        Returns
+        -------
+
+        cost: tensor
+            it returns the value of the squared error cost function (TF global_variable):
+            cost = sum_over_samples((model-Y_data)**2)/2 + sum(weights_level_1**2)/2 + sum(weights_level_2**2)/2
         """
-        cost = tf.nn.l2_loss(t=(model - Y_data))  # using the quadratic cost function
-        regulariser = tf.nn.l2_loss(parameters[0]) + tf.nn.l2_loss(parameters[1])
+        cost = tf.nn.l2_loss(t=(model - Y_data))
+        regulariser = tf.nn.l2_loss(weights[0]) + tf.nn.l2_loss(weights[1])
         cost = tf.reduce_mean(cost + regu * regulariser)
 
         return cost
 
-    def plotTrainCost(self):
-        fig2, ax2 = plt.subplots(figsize=(6,6))
-        ax2.plot(self.trainCost)
-        ax2.set_xlabel('Number of iterations')
-        ax2.set_ylabel('Cost Value in train set')
-        ax2.legend()
-        plt.show()
-
     def plotLearningCurve(self):
+        """
+        This function plots the cost versus the number of iterations for the training set and the test set in the
+        same plot. The cost on the train set is calculated every 50 iterations.
+        """
         fig, ax = plt.subplots(figsize=(6, 6))
         ax.plot(self.trainCost, label="Train set", color="b")
         iterTest = range(0, self.max_iter, 50)
@@ -197,7 +249,12 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function is called to check if the batch size has to take the default value or a user-set value.
         If it is a user set value, it checks whether it is a reasonable value.
-        :return: batch_size
+
+        Returns
+        -------
+        batch_size: int
+            The default is 100 or to the total number of samples present if this is smaller than 100. Otherwise it is
+            checked whether it is smaller than 1 or larger than the total number of samples.
         """
         if self.batch_size == 'auto':
             batch_size = min(100, self.n_samples)
@@ -213,21 +270,33 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
     def checkIsFitted(self):
         """
         This function checks whether the weights and biases have been changed from their initial values.
-        :return: A boolean. False if the weights and biases are zero. True otherwise.
+
+        Returns
+        -------
+        boolean
+            True if the weights and biases are not all zero.
         """
         if self.alreadyInitialised == False:
-            print "Error: The fit function has not been called yet"
-            return False
+            raise StandardError("The fit function has not been called yet")
         else:
             return True
 
     def predict(self, X):
         """
         This function uses the X data and plugs it into the model and then returns the predicted y
-        :param X: numpy array of size (n_samples, n_features)
-        :return: numpy array of size (n_samples,)
+
+        Parameters
+        ----------
+        X: array of shape (n_samples, n_features)
+            This contains the input data with samples in the rows and features in the columns.
+
+        Returns
+        -------
+        predictions: array of size (n_samples,)
+            This contains the predictions for the target values corresponding to the samples contained in X.
+
         """
-        print "Starting the predictions. \n"
+        print "Calculating the predictions. \n"
 
         if self.checkIsFitted():
             check_array(X)
@@ -246,16 +315,28 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
             return predictions
         else:
-            return
+            raise StandardError("The fit function has not been called yet, so the model has not been trained yet.")
 
     def score(self, X, y, sample_weight=None):
         """
-        Returns the mean accuracy on the given test data and labels. It calculates the R^2 value.
-        :param X: The x values - numpy array of shape (N_samples, n_features)
-        :param y: The true values for X - numpy array of shape (N_samples,)
-        :param sample_weight: sample_weight : array-like, shape = [n_samples], optional
+        Returns the mean accuracy on the given test data and labels. It calculates the R^2 value. It is used during the
+        training of the model.
+
+        Parameters
+        ----------
+        X: array of shape (n_samples, n_features)
+            This contains the input data with samples in the rows and features in the columns.
+
+        y: array of shape (n_samples,)
+            This contains the target values for each sample in the X matrix.
+
+        sample_weight: array of shape (n_samples,)
             Sample weights (not sure what this is, but i need it for inheritance from the BaseEstimator)
-        :return: r2 - between 0 and 1. Tells how good the correlation plot is.
+
+        Returns
+        -------
+        r2: double
+            This is a score between -inf and 1 (best value is 1) that tells how good the correlation plot is.
         """
 
         y_pred = self.predict(X)
@@ -264,45 +345,82 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
     def scoreFull(self, X, y):
         """
-        Returns the mean accuracy on the given test data and labels. It calculates the R^2 value.
-        :param X: The x values - numpy array of shape (N_samples, n_features)
-        :param y: The true values for X - numpy array of shape (N_samples,)
-        :return: r2 - between 0 and 1. Tells how good the correlation plot is. rmsekJmol - the root mean square error in
-        kJ/mol. maekJmol - the mean absolute error in kJ/mol. lpo and lno - largest outliars in the predictions.
+        This scores the predictions more thouroughly than the function 'score'. It calculates the r2, the root mean
+        square error, the mean absolute error and the largest positive/negative outliers. They are all in the units of
+        the data passed.
+
+        Parameters
+        ----------
+        X: array of shape (n_samples, n_features)
+            This contains the input data with samples in the rows and features in the columns.
+
+        y: array of shape (n_samples,)
+            This contains the target values for each sample in the X matrix.
+
+        Returns
+        -------
+        r2: double
+            This is a score between -inf and 1 (best value is 1) that tells how good the correlation plot is.
+
+        rmse: double
+            This is the root mean square error
+
+        mae: double
+            This is the mean absolute error
+
+        lpo: double
+            This is the largest positive outlier.
+
+        lno: double
+            This is the largest negative outlier.
+
         """
 
         y_pred = self.predict(X)
         r2 = r2_score(y, y_pred)
-        rmseHa = np.sqrt(mean_squared_error(y, y_pred))
-        maeHa = mean_absolute_error(y, y_pred)
-        rmsekJmol = rmseHa * 2625.50
-        maekJmol = maeHa * 2625.50
-        # Largest positive/negative outlier
-        lpo_Ha, lno_Ha = self.largestOutliers(y, y_pred)
-        lpo_kJmol = lpo_Ha * 2625.50
-        lno_kJmol = lno_Ha * 2625.50
+        rmse = np.sqrt(mean_squared_error(y, y_pred))
+        mae = mean_absolute_error(y, y_pred)
+        lpo, lno = self.largestOutliers(y, y_pred)
 
-        return r2, rmsekJmol, maekJmol, lpo_kJmol, lno_kJmol
+        return r2, rmse, mae, lpo, lno
 
     def largestOutliers(self, y_true, y_pred):
         """
         This function calculates the larges positive and negative outliers from the predictions of the neural net.
-        :param y_true: The original, electronic structure energies
-        :param y_pred: The predicted energies from the neural net
-        :return: the largest positive and negative outlier in Hartree.
+
+        Parameters
+        ----------
+        y_true: array of shape (n_samples,)
+            This contains the target values for each sample.
+
+        y_pred: array of shape (n_samples,)
+            This contains the neural network predictions of the target values for each sample.
+
+        Returns
+        -------
+        lpo: double
+            This is the largest positive outlier.
+
+        lno: double
+            This is the largest negative outlier.
         """
         diff = y_pred - y_true
-        lpo_Ha = np.amax(diff)
-        lno_Ha = - np.amin(diff)
+        lpo = np.amax(diff)
+        lno = - np.amin(diff)
 
-        return lpo_Ha, lno_Ha
+        return lpo, lno
 
     def errorDistribution(self, X, y):
         """
-        This function plots histograms of how many values have an error in a certain data range.
-        :param X: numpy array of size (n_samples, n_features)
-        :param y: numpy array of size (n_samples,)
-        :return: None
+        This function plots histograms of how many predictions have an error in a certain range.
+
+        Parameters
+        ----------
+        X: array of shape (n_samples, n_features)
+            This contains the input data with samples in the rows and features in the columns.
+
+        y: array of shape (n_samples,)
+            This contains the target values for each sample in the X matrix.
         """
         y_pred = self.predict(X)
         diff_kJmol = (y - y_pred)*2625.50
@@ -314,12 +432,22 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
     def correlationPlot(self, X, y, ylim=(1.90, 1.78), xlim=(1.90, 1.78)):
         """
-        This function plots a correlation plot of the values that are in the data set and the NN predictions.
-        :param X: numpy array of size (n_samples, n_features)
-        :param y: numpy array of size (n_samples,)
-        :param ylim: The y range in which to plot the values
-        :param xlim: The x range in which to plot the values
-        :return: None
+        This function plots a correlation plot of the values that are in the data set and the NN predictions. It expects
+        the target values to be in Hartrees.
+
+        Parameters
+        ----------
+        X: array of shape (n_samples, n_features)
+            This contains the input data with samples in the rows and features in the columns.
+
+        y: array of shape (n_samples,)
+            This contains the target values for each sample in the X matrix.
+
+        ylim: tuple of shape (2,) containing doubles
+            These are the limits of the y values for the plot.
+
+        xlim: tuple of shape (2,) containing doubles
+            These are the limits of the x values for the plot.
         """
         y_pred = self.predict(X)
         df = pd.DataFrame()
@@ -333,8 +461,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
     def plotWeights(self):
         """
-        This function plots the weights of the first layer of the neural network.
-        :return: None
+        This function plots the weights of the first layer of the neural network as a heat map.
         """
 
         w1_square_tot = []
@@ -343,34 +470,43 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             w1_square = self.reshape_triang(self.w1[i], 7)
             w1_square_tot.append(w1_square)
 
-        n = 7
+        n = int(np.ceil(np.sqrt(self.hidden_layer_sizes)))
         additional = n**2 - self.hidden_layer_sizes[0]
 
         fig, axn = plt.subplots(n, n, sharex=True, sharey=True)
         fig.set_size_inches(11.7, 8.27)
         cbar_ax = fig.add_axes([.91, .3, .03, .4])
-        counter = 0
 
         for i, ax in enumerate(axn.flat):
-            df = pd.DataFrame(w1_square_tot[counter])
-            ax.set(xticks=[], yticks=[])
-            sns.heatmap(df, ax=ax, cbar=i == 0,
-                        vmax=0, vmin=-0.1,
-                        cbar_ax=None if i else cbar_ax)
-            counter = counter + 1
-            if counter >= self.hidden_layer_sizes[0]:
+            if i >= self.hidden_layer_sizes[0]:
                 break
+            df = pd.DataFrame(w1_square_tot[i])
+            sns.heatmap(df,
+                        ax=ax,
+                        cbar=i == 0,
+                        vmin=-0.2, vmax=0.2,
+                        cbar_ax=None if i else cbar_ax, cmap="PiYG")
 
         fig.tight_layout(rect=[0, 0, 0.9, 1])
-
-        sns.plt.show()
+        sns.plt.savefig("weights_l1.png", transparent=False, dpi=600)
+        # sns.plt.show()
 
     def reshape_triang(self, X, dim):
         """
-        This function reshapes a flattened triangular matrix back to a diagonal matrix.
-        :param X: numpy array of shape (n_atoms*(n_atoms+1)/2, )
-        :param dim: n_atoms (int)
-        :return: numpy array of shape (n_atoms, n_atoms)
+        This function reshapes a single flattened triangular matrix back to a square diagonal matrix.
+
+        Parameters
+        ----------
+        X: array of shape (n_atoms*(n_atoms+1)/2, )
+            This contains a sample of the Coulomb matrix trimmed down so that it contains only the a triangular matrix.
+
+        dim: int
+            The triangular matrix X will be reshaped to a matrix that has size dim by dim.
+
+        Returns
+        -------
+        x_square: array of shape (n_atoms, n_atoms)
+            This contains the square diagonal matrix.
         """
 
         x_square = np.zeros((dim, dim))
@@ -384,12 +520,30 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         return x_square
 
     def __vis_input(self, initial_guess):
+        """
+        This function does gradient ascent to generate an input that gives the highest activation for each neuron of
+        the first hidden layer.
 
+        Parameters
+        ----------
+        initial_guess: array of shape (n_features,)
+            A coulomb matrix to use as the initial guess to the gradient ascent in the hope that the closest local
+            maximum will be found.
+
+        Returns
+        -------
+        self.x_square_tot: list of arrays of shape (num_atoms, num_atoms)
+            each numpy array is the input for a particular neuron that gives the highest activation.
+
+        """
+
+        self.isVisReady = True
         initial_guess = np.reshape(initial_guess, newshape=(1, initial_guess.shape[0]))
         input_x = tf.Variable(initial_guess, dtype=tf.float32)
         activations = []
-        iterations = 5000
-        x_square_tot = []
+        iterations = 7000
+        lambda_reg = 0.0002
+        self.x_square_tot = []
 
         for node in range(self.hidden_layer_sizes[0]):
 
@@ -398,9 +552,10 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             b1_node = tf.constant(self.b1[node])
             z1 = tf.add(tf.matmul(tf.abs(input_x), tf.transpose(w1_node)), b1_node)
             a1 = tf.nn.sigmoid(z1)
+            a1_reg = a1 - lambda_reg * tf.tensordot(input_x, tf.transpose(input_x), axes=1)
 
             # Function to maximise a1
-            optimiser = tf.train.AdamOptimizer(learning_rate=0.01).minimize(-a1)
+            optimiser = tf.train.AdamOptimizer(learning_rate=0.01).minimize(-a1_reg)
 
             # Initialising the model
             init = tf.global_variables_initializer()
@@ -418,15 +573,31 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                 final_x = sess.run(input_x)     # Storing the best input
 
             x_square = self.reshape_triang(final_x[0,:], 7)
-            x_square_tot.append(x_square)
+            self.x_square_tot.append(x_square)
+        print "The activations at the end of the optimisations are:"
+        print activations
 
-        return x_square_tot
+        return self.x_square_tot
 
-    def vis_input_matrix(self, initial_guess):
+    def vis_input_matrix(self, initial_guess, write_plot=False):
+        """
+        This function calculates the inputs that would give the highest activations of the neurons in the first hidden
+        layer of the neural network. It then plots them as a heat map.
 
-        x_square_tot = self.__vis_input(initial_guess)
+        Parameters
+        ----------
+        initial_guess: array of shape (n_features,)
+            A coulomb matrix to use as the initial guess to the gradient ascent in the hope that the closest local
+            maximum will be found.
 
-        n = 7
+        write_plot: boolean, default False
+            If this is true, the plot is written to a png file.
+        """
+
+        if self.isVisReady == False:
+            self.x_square_tot = self.__vis_input(initial_guess)
+
+        n = int(np.ceil(np.sqrt(self.hidden_layer_sizes)))
         additional = n ** 2 - self.hidden_layer_sizes[0]
 
         fig, axn = plt.subplots(n, n, sharex=True, sharey=True)
@@ -435,36 +606,58 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         counter = 0
 
         for i, ax in enumerate(axn.flat):
-            df = pd.DataFrame(x_square_tot[counter])
+            df = pd.DataFrame(self.x_square_tot[counter])
             ax.set(xticks=[], yticks=[])
             sns.heatmap(df, ax=ax, cbar=i == 0, cmap='RdYlGn',
-                        # vmax=1, vmin=-1,
+                        vmax=8, vmin=-8,
                         cbar_ax=None if i else cbar_ax)
             counter = counter + 1
             if counter >= self.hidden_layer_sizes[0]:
                 break
 
         fig.tight_layout(rect=[0, 0, 0.9, 1])
-
+        if write_plot==True:
+            sns.plt.savefig("high_a1_input.png", transparent=False, dpi=600)
         sns.plt.show()
 
-    def vis_input_network(self, initial_guess):
+    def vis_input_network(self, initial_guess, write_plot=False):
+        """
+        This function calculates the inputs that would give the highest activations of the neurons in the first hidden
+        layer of the neural network. It then plots them as a netwrok graph.
+
+        Parameters
+        ----------
+        initial_guess: array of shape (n_features,)
+            A coulomb matrix to use as the initial guess to the gradient ascent in the hope that the closest local
+            maximum will be found.
+
+        write_plot: boolean, default False
+            If this is true, the plot is written to a png file.
+        """
         import networkx as nx
 
-        x_square_tot = self.__vis_input(initial_guess)
+        if self.isVisReady == False:
+            self.x_square_tot = self.__vis_input(initial_guess)
+
+        n = int(np.ceil(np.sqrt(self.hidden_layer_sizes)))
 
         fig = plt.figure(figsize=(10, 8))
-        for i in range(49):
+        for i in range(n**2):
             if i >= self.hidden_layer_sizes[0]:
                 break
-            fig.add_subplot(7,7,1+i)
-            A = np.matrix(x_square_tot[i])
+            fig.add_subplot(n,n,1+i)
+            A = np.matrix(self.x_square_tot[i])
             graph2 = nx.from_numpy_matrix(A, parallel_edges=False)
             # nodes and their label
-            pos = {0: np.array([0.46887886, 0.06939788]), 1: np.array([0, 0.26694294]),
-                   2: np.array([0.3, 0.56225267]),
-                   3: np.array([0.13972517, 0.]), 4: np.array([0.6, 0.9]), 5: np.array([0.27685853, 0.31976436]),
-                   6: np.array([0.72, 0.9])}
+            # pos = {0: np.array([0.46887886, 0.06939788]), 1: np.array([0, 0.26694294]),
+            #        2: np.array([0.3, 0.56225267]),
+            #        3: np.array([0.13972517, 0.]), 4: np.array([0.6, 0.9]), 5: np.array([0.27685853, 0.31976436]),
+            #        6: np.array([0.72, 0.9])}
+            pos = {}
+            for i in range(7):
+                x_point = 0.6*np.cos((i+1)*2*np.pi/7)
+                y_point = 0.6*np.sin((i+1)*2*np.pi/7)
+                pos[i] = np.array([x_point, y_point])
             labels = {}
             labels[0] = 'H'
             labels[1] = 'H'
@@ -475,21 +668,18 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             labels[6] = 'N'
             node_size = np.zeros(7)
             for i in range(7):
-                node_size[i] =  abs(graph2[i][i]['weight'])*5
+                node_size[i] =  abs(graph2[i][i]['weight'])*10
             nx.draw_networkx_nodes(graph2, pos, node_size=node_size)
-            nx.draw_networkx_labels(graph2, pos, labels=labels, font_size=20, font_family='sans-serif')
+            nx.draw_networkx_labels(graph2, pos, labels=labels, font_size=15, font_family='sans-serif', font_color='blue')
             # edges
-            edgewidth = [d['weight']*0.3 for (u, v, d) in graph2.edges(data=True)]
+            edgewidth = [d['weight'] for (u, v, d) in graph2.edges(data=True)]
             nx.draw_networkx_edges(graph2, pos, width=edgewidth)
             plt.axis('off')
-            # plt.savefig("weighted_graph.png")  # save as png
+
+        if write_plot==True:
+            plt.savefig("high_a1_network.png")  # save as png
 
         plt.show()  # display
-
-
-
-
-
 
 
 
