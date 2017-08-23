@@ -9,7 +9,6 @@ def XMLtoCSV(XMLinput):
     The second file contains the 'Y part' of the data. It has a sample per line with the energy of each sample (float).
 
     :XMLinput: an XML file obtained from grid electronic structure calculations
-    :returns: None
     """
 
     # These are the output files
@@ -53,23 +52,21 @@ def XMLtoCSV(XMLinput):
             line = inputFile.next()
             indexEn1 = line.find("value")
             indexEn2 = line.find("/>")
-            energyHa = float(line[indexEn1 + 7:indexEn2 - 1])
-            energyKjmol = energyHa * 2625.4988
-            fileY.write(str(energyKjmol) + "\n")
+            energy = float(line[indexEn1 + 7:indexEn2 - 1])
+            fileY.write(str(energy) + "\n")
 
     return None
 
 def XYZtoCSV(XYZinput):
     """
-    This function takes as an input the XYZ file that comes out of VR and transforms
-    it into 2 CSV files. The first one is the 'X part' of the data. It contains a sample per line. Each line has a format:
+    This function takes as an input the XYZ file that comes out of VR and transforms it into 2 CSV files. The first one
+    is the 'X part' of the data. It contains a sample per line. Each line has a format:
     atom label (string), coordinate x (float), coordinate y (float), coordinate z (float), ... for each atom in the system.
     The second file contains the 'Y part' of the data. It has a sample per line with the energy of each sample (float).
 
-    :XMLinput: an XML file obtained from grid electronic structure calculations
-    :returns: None
-
     Note: This is specific to a file containing C, H, N as the atoms.
+
+    :XMLinput: an XML file obtained from grid electronic structure calculations
     """
 
     # These are the output files
@@ -90,9 +87,8 @@ def XYZtoCSV(XYZinput):
         index1 = line.find("Energy")
         if index1 >= 0:
             index2 = line.find("(hartree)")
-            energyHa = float(line[index1+8:index2-1])
-            energyKjmol = energyHa * 2625.4988
-            fileY.write(str(energyKjmol))
+            energy = float(line[index1+8:index2-1])
+            fileY.write(str(energy))
             fileY.write("\n")
 
         if line[0] == "C" or line[0] == "H":
@@ -109,12 +105,14 @@ def XYZtoCSV(XYZinput):
 
 def extractMolpro(MolproInput):
     """
-    This function takes a Molpro .out file and returns the geometry, the energy and the partial charges on the atoms.
+    This function takes one Molpro .out file and returns the geometry, the energy and the partial charges on the atoms.
 
-    :param MolproInput: the molpro .out file
-    :return: rawData: List of strings with atom label and atom coordinates - example ['C', '0.1, '0.1', '0.1', ...]
-            ene: Value of the energy: string
-            partialCh: List of strings with atom label and its partial charge - example ['C', '6.36', 'H', ...]
+    :MolproInput: the molpro .out file (string)
+
+    :return:
+    :rawData: List of strings with atom label and atom coordinates - example ['C', '0.1, '0.1', '0.1', ...]
+    :ene: Value of the energy (string)
+    :partialCh: List of strings with atom label and its partial charge - example ['C', '6.36', 'H', ...]
     """
 
     # This is the input file
@@ -157,8 +155,9 @@ def list_files(dir, key):
     """
     This function walks through a directory and makes a list of the files that have a name containing a particular string
 
-    :param dir: path to the directory to explore
-    :param key: string to look for in file names
+    :dir: path to the directory to explore
+    :key: string to look for in file names
+
     :return: list of files containing "key" in their filename
     """
 
@@ -180,9 +179,8 @@ def MolproToCSV(directory, key):
     where each line is a different geometry. The energies are written to Y.csv where each line is the energy of a
     different geometry. The partial charges are written to Q.csv
 
-    :param directory: path to the directory containing the Molpro .out files
-    :param key: string to look for in the file names
-    :return: None
+    :directory: path to the directory containing the Molpro .out files (string)
+    :key: string to look for in the file names (string)
     """
 
     # These are the output files
@@ -217,10 +215,18 @@ def loadX(fileX):
     This function takes a .csv file that contains on each line a different configuration of the system in the format
     "C,0.1,0.1,0.1,H,0.2,0.2,0.2..." and returns a list of lists with the configurations of the system.
 
-    :param fileX: The .csv file containing the geometries of the system
-    :return: a list of lists with characters and floats. An example is shown below for 3 samples of a di hydrogen
-            molecule:
-        [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]
+    The following functions generate .csv files in the correct format:
+
+    1. XMLtoCSV
+    2. XYZtoCSSV
+    3. MolproToCSV
+
+    The function returns a list of lists where each element is a different configuration for a molecule. For example,
+    for a sample with 3 hydrogen atoms the matrix returned will be:
+    ``[['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]``
+
+    :fileX: The .csv file containing the geometries of the system (string)
+    :return: a list of lists with characters and floats.
     """
 
     if fileX[-4:] != ".csv":
@@ -251,8 +257,8 @@ def loadY(fileY):
     This function takes a .csv file containing the energies of a system and returns an array with the energies contained
     in the file.
 
-    :param fileY: the .csv file containing the energies of the system
-    :return: matrixY - a numpy array containing the energies of the system with size (n_samples, 1)
+    :fileY: the .csv file containing the energies of the system (string)
+    :return: numpy array of shape (n_samples, 1)
     """
 
     # Checking that the input file has the correct .csv extension
@@ -273,16 +279,21 @@ def loadY(fileY):
 
 def loadPd(fileName):
     """
-    This function takes a .csv file that contains on each line a different configuration of the system in the format
-    "C,0.1,0.1,0.1,H,0.2,0.2,0.2..." and at the end of each line there are two values of the energies. It returns a
-    list of lists with the configurations of the system and a numpy array of size (N_samples, 1) with the difference of
-    the two values of the energies.
+    This function takes a .csv file generated after processing the original CSV files with the package PANDAS.
+    The new csv file contains on each line a different configuration of the system in the format
+    "C,0.1,0.1,0.1,H,0.2,0.2,0.2..." and at the end of each line there are two values of the energies. The energies are
+    calculated at 2 different levels of theory and the worse of the two is first.
+    It returns a list of lists with the configurations of the system and a numpy array of size (N_samples, 1) with the
+    difference of the two values of the energies.
 
-    :param fileX: The .csv file containing the geometries and the energies at 2 levels of theory for the system
-    :return: a list of lists with characters and floats. An example is shown below for 3 samples of a di hydrogen
-            molecule:
-        [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]
-        and a list of energy differences of size (n_samples,)
+    For example, for a sample with 3 hydrogen atoms the list of lists returned will be:
+    ``[['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]``
+
+
+    :fileX: The .csv file containing the geometries and the energies at 2 levels of theory for the system
+    :return:
+    :matrixX: a list of lists with characters and floats.
+    :matrixY: and a list of energy differences of size (n_samples,)
     """
     if fileName[-4:] != ".csv":
         print "Error: the file extension is not .csv"
@@ -326,14 +337,24 @@ def loadPd(fileName):
 
 def loadPd_q(fileName):
     """
-    This function takes a .csv file containing a dataset formatted with the geometries in a 'clean datases' arrangement,
-    followed by the partial charges and 2 values of the energies.
-    :param fileName: .csv file
-    :return: matrixX: a list of lists with characters and floats. An example is shown below for 3 samples of a di hydrogen
-            molecule:
-            [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0], ['H',-0.7,0.0,0.0,'H',0.7,0.0,0.0]]
-            matrixY: a numpy array of energy differences (floats) of size (n_samples,)
-            matrixQ: a list of numpy arrays of the partial charges -  size (n_samples, n_atoms)
+    This function takes a .csv file generated after processing the original CSV files with the package PANDAS.
+    The data is arranged with first the geometries in a 'clean datases' arrangement. This means that the headers tell
+    the atom label for each coordinate. For example, for a molecule with 3 hydrogens, the first two lines of the csv
+    file for the geometries look like:
+
+    ``H1x, H1y, H1z, H2x, H2y, H2z, H3x, H3y, H3z
+    0,1.350508,0.7790238,0.6630868,1.825709,1.257877,-0.1891705,1.848891,1.089646``
+
+    Then there are the partial charges and then 2 values of the energies (all in similar format to the geometries).
+
+    **Note**: This is specific to the CH4CN system!
+
+    :fileName: .csv file (string)
+
+    :return:
+    :matrixX: a list of lists with characters and floats.
+    :matrixY: a numpy array of energy differences (floats) of size (n_samples,)
+    :matrixQ: a list of numpy arrays of the partial charges -  size (n_samples, n_atoms)
     """
 
     if fileName[-4:] != ".csv":
@@ -372,7 +393,8 @@ def loadPd_q(fileName):
 def extractGeom(lineList):
     """
     Function used by loadPd_q to extract the geometries.
-    :param lineList: line with geometries in clean format, partial charges and energies
+
+    :lineList: line with geometries in clean format, partial charges and energies
     :return: list of geometry in format [['H',-0.5,0.0,0.0,'H',0.5,0.0,0.0], ['H',-0.3,0.0,0.0,'H',0.3,0.0,0.0]...
     """
     geomPart = lineList[1:22]
@@ -388,7 +410,8 @@ def extractGeom(lineList):
 
 def extractEneDiff(lineList):
     """
-    Extracts the energy from a line of the clean data set
+    This function is used by loadPd_q  to extract the energy from a line of the clean data set.
+
     :param lineList: line with geometries in clean format, partial charges and energies
     :return: energy difference (float)
     """
@@ -398,8 +421,9 @@ def extractEneDiff(lineList):
 
 def extractQ(lineList):
     """
-    Extracts the partial charges from a line of the clean data set
-    :param lineList: line with geometries in clean format, partial charges and energies
+    This function is used by loadPd_q to extract the partial charges from a line of the clean data set.
+
+    :lineList: line with geometries in clean format, partial charges and energies
     :return: numpy array of partial charges of size (n_atoms)
     """
     qPart = lineList[22:-2]
@@ -411,9 +435,19 @@ def extractQ(lineList):
 
 def CSVtoTew(CSVfile):
     """
-    This file can take a CSV file such as pbe_b3lyp_partQ_rel.csv and turn it into a monotlithic file that can be used
-    to train Tew method.
-    :param CSVfile: the CSV file with the data
+    This function takes a .csv file generated after processing the original CSV files with the package PANDAS where
+    the data is arranged with first the geometries in a 'clean datases' arrangement. This means that the headers tell
+    the atom label for each coordinate. For example, for a molecule with 3 hydrogens, the first two lines of the csv
+    file for the geometries look like:
+
+    ``H1x, H1y, H1z, H2x, H2y, H2z, H3x, H3y, H3z
+    0,1.350508,0.7790238,0.6630868,1.825709,1.257877,-0.1891705,1.848891,1.089646``
+
+    Then there are the partial charges and then 2 values of the energies (all in similar format to the geometries).
+    This function turns it into a monotlithic file that can be used to train Tew method.
+
+
+    :CSVfile: the CSV file with the data
     :return: None
     """
 
@@ -436,10 +470,11 @@ def CSVtoTew(CSVfile):
 
 def writeToMono(outFile, data):
     """
-    This function takes a line of the CSV file such as pbe_b3lyp_partQ_rel.csv and turns it into the format of a
-    monolythic trajectory file. It then writes it to the output file.
-    :param outFile: The monolithic trajectory file
-    :param data: a line of the original CSV file
+    Function used by CSVtoTew to turn a line of the CSV file into the format of a monolythic trajectory file. It then
+    writes it to the output file.
+
+    :outFile: The monolithic trajectory file
+    :data: a line of the original CSV file
     :return: None
     """
     ene = float(data[-2]) - float(data[-1])

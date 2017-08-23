@@ -23,30 +23,34 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
     Neural-network with one hidden layer to do regression.
     This model optimises the squared error function using the Adam optimiser.
 
-    Parameters
-    ----------
 
-    hidden_layer_sizes: tuple, length = number of hidden layers, default (0,)
+    :hidden_layer_sizes: Tuple, length = number of hidden layers, default (0,).
+
         The ith element represents the number of neurons in the ith
         hidden layer. In this version, only one hidden layer is supported, so it shouldn't hav
         length larger than 1.
 
-    n_units: int, default 45
+    :n_units: int, default 45.
+
         Number of neurons in the first hidden layer. This parameter has been added as a hack to make it work with
         Osprey.
 
-    alpha: float, default 0.0001
+    :alpha: float, default 0.0001
+
         L2 penalty (regularization term) parameter.
 
-    batch_size: int, default 'auto'
+    :batch_size: int, default 'auto'.
+
         Size of minibatches for stochastic optimizers.
         If the solver is 'lbfgs', the classifier will not use minibatch.
         When set to "auto", `batch_size=min(200, n_samples)`
 
-    learning_rate_init: double, default 0.001
+    :learning_rate_init: double, default 0.001.
+
         The value of the learning rate in the numerical minimisation.
 
-    max_iter: int, default 200
+    :max_iter: int, default 200.
+
         Total number of iterations that will be carried out during the training process.
 
     """
@@ -81,18 +85,17 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         Fit the model to data matrix X and target y.
 
-        Parameters
-        ----------
+        :X: array of shape (n_samples, n_features).
 
-        X: array of shape (n_samples, n_features)
             This contains the input data with samples in the rows and features in the columns.
 
-        y: array of shape (n_samples,)
+        :y: array of shape (n_samples,).
+
             This contains the target values for each sample in the X matrix.
 
-        Returns
-        -------
-        None
+        :test: list with 1st element an array of shape (n_samples, n_features) and 2nd element an array of shape (n_samples, )
+
+            This is a test set to visualise whether the model is overfitting.
 
         """
 
@@ -175,21 +178,17 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
     def modelNN(self, X, parameters):
         """
-        This function calculates the model neural network
+        This function calculates the model neural network.
 
-        Parameters
-        ----------
+        :X: array of shape (n_samples, n_features)
 
-        X: array of shape (n_samples, n_features)
             This contains the input data with samples in the rows and features in the columns.
 
-        parameters: array of TensorFlow variables of shape (2*len(hidden_layer_sizes+1), )
+        :parameters: array of TensorFlow variables of shape (2*len(hidden_layer_sizes+1), )
+
             It contains the weights and the biases for each hidden layer and the output layer.
 
-        Returns
-        -------
-        A Tensor with the model of the neural network.
-
+        :returns: A Tensor with the model of the neural network.
         """
 
         # Definition of the model
@@ -203,24 +202,24 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function calculates the squared error cost function with L2 regularisation.
 
-        Parameters
-        ----------
-        model: tensor
+        :model: tensor
+
             This tensor contains the neural network model.
 
-        Y_data: TensorFlow Place holder
+        :Y_data: TensorFlow Place holder
+
             This tensor contains the y part of the data once the graph is initialised.
 
-        weights: array of TensorFlow variables of shape (len(hidden_layer_sizes+1), )
+        :weights: array of TensorFlow variables of shape (len(hidden_layer_sizes+1), )
+
             It contains the weights for each hidden layer and the output layer.
 
-        regu: float
+        :regu: float
+
             The parameter that tunes the amount of regularisation.
 
-        Returns
-        -------
+        :return: tensor
 
-        cost: tensor
             it returns the value of the squared error cost function (TF global_variable):
             cost = sum_over_samples((model-Y_data)**2)/2 + sum(weights_level_1**2)/2 + sum(weights_level_2**2)/2
         """
@@ -250,9 +249,8 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         This function is called to check if the batch size has to take the default value or a user-set value.
         If it is a user set value, it checks whether it is a reasonable value.
 
-        Returns
-        -------
-        batch_size: int
+        :return: int
+
             The default is 100 or to the total number of samples present if this is smaller than 100. Otherwise it is
             checked whether it is smaller than 1 or larger than the total number of samples.
         """
@@ -271,10 +269,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function checks whether the weights and biases have been changed from their initial values.
 
-        Returns
-        -------
-        boolean
-            True if the weights and biases are not all zero.
+        :return: True if the weights and biases are not all zero.
         """
         if self.alreadyInitialised == False:
             raise StandardError("The fit function has not been called yet")
@@ -285,14 +280,12 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function uses the X data and plugs it into the model and then returns the predicted y
 
-        Parameters
-        ----------
-        X: array of shape (n_samples, n_features)
+        :X: array of shape (n_samples, n_features)
+
             This contains the input data with samples in the rows and features in the columns.
 
-        Returns
-        -------
-        predictions: array of size (n_samples,)
+        :return: array of size (n_samples,)
+
             This contains the predictions for the target values corresponding to the samples contained in X.
 
         """
@@ -322,20 +315,19 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         Returns the mean accuracy on the given test data and labels. It calculates the R^2 value. It is used during the
         training of the model.
 
-        Parameters
-        ----------
-        X: array of shape (n_samples, n_features)
+        :X: array of shape (n_samples, n_features)
+
             This contains the input data with samples in the rows and features in the columns.
 
-        y: array of shape (n_samples,)
+        :y: array of shape (n_samples,)
+
             This contains the target values for each sample in the X matrix.
 
-        sample_weight: array of shape (n_samples,)
+        :sample_weight: array of shape (n_samples,)
+
             Sample weights (not sure what this is, but i need it for inheritance from the BaseEstimator)
 
-        Returns
-        -------
-        r2: double
+        :return: double
             This is a score between -inf and 1 (best value is 1) that tells how good the correlation plot is.
         """
 
@@ -349,29 +341,33 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         square error, the mean absolute error and the largest positive/negative outliers. They are all in the units of
         the data passed.
 
-        Parameters
-        ----------
-        X: array of shape (n_samples, n_features)
+        :X: array of shape (n_samples, n_features)
+
             This contains the input data with samples in the rows and features in the columns.
 
-        y: array of shape (n_samples,)
+        :y: array of shape (n_samples,)
+
             This contains the target values for each sample in the X matrix.
 
-        Returns
-        -------
-        r2: double
+        :return:
+        :r2: double
+
             This is a score between -inf and 1 (best value is 1) that tells how good the correlation plot is.
 
-        rmse: double
+        :rmse: double
+
             This is the root mean square error
 
-        mae: double
+        :mae: double
+
             This is the mean absolute error
 
-        lpo: double
+        :lpo: double
+
             This is the largest positive outlier.
 
-        lno: double
+        :lno: double
+
             This is the largest negative outlier.
 
         """
@@ -388,20 +384,22 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function calculates the larges positive and negative outliers from the predictions of the neural net.
 
-        Parameters
-        ----------
-        y_true: array of shape (n_samples,)
+        :y_true: array of shape (n_samples,)
+
             This contains the target values for each sample.
 
-        y_pred: array of shape (n_samples,)
+        :y_pred: array of shape (n_samples,)
+
             This contains the neural network predictions of the target values for each sample.
 
-        Returns
-        -------
-        lpo: double
+        :return:
+
+        :lpo: double
+
             This is the largest positive outlier.
 
-        lno: double
+        :lno: double
+
             This is the largest negative outlier.
         """
         diff = y_pred - y_true
@@ -414,12 +412,12 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function plots histograms of how many predictions have an error in a certain range.
 
-        Parameters
-        ----------
-        X: array of shape (n_samples, n_features)
+        :X: array of shape (n_samples, n_features)
+
             This contains the input data with samples in the rows and features in the columns.
 
-        y: array of shape (n_samples,)
+        :y: array of shape (n_samples,)
+
             This contains the target values for each sample in the X matrix.
         """
         y_pred = self.predict(X)
@@ -435,18 +433,20 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         This function plots a correlation plot of the values that are in the data set and the NN predictions. It expects
         the target values to be in Hartrees.
 
-        Parameters
-        ----------
-        X: array of shape (n_samples, n_features)
+        :X: array of shape (n_samples, n_features)
+
             This contains the input data with samples in the rows and features in the columns.
 
-        y: array of shape (n_samples,)
+        :y: array of shape (n_samples,)
+
             This contains the target values for each sample in the X matrix.
 
-        ylim: tuple of shape (2,) containing doubles
+        :ylim: tuple of shape (2,) containing doubles
+
             These are the limits of the y values for the plot.
 
-        xlim: tuple of shape (2,) containing doubles
+        :xlim: tuple of shape (2,) containing doubles
+
             These are the limits of the x values for the plot.
         """
         y_pred = self.predict(X)
@@ -495,17 +495,17 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         """
         This function reshapes a single flattened triangular matrix back to a square diagonal matrix.
 
-        Parameters
-        ----------
-        X: array of shape (n_atoms*(n_atoms+1)/2, )
+        :X: array of shape (n_atoms*(n_atoms+1)/2, )
+
             This contains a sample of the Coulomb matrix trimmed down so that it contains only the a triangular matrix.
 
-        dim: int
+        :dim: int
+
             The triangular matrix X will be reshaped to a matrix that has size dim by dim.
 
-        Returns
-        -------
-        x_square: array of shape (n_atoms, n_atoms)
+
+        :return: array of shape (n_atoms, n_atoms)
+
             This contains the square diagonal matrix.
         """
 
@@ -524,15 +524,13 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         This function does gradient ascent to generate an input that gives the highest activation for each neuron of
         the first hidden layer.
 
-        Parameters
-        ----------
-        initial_guess: array of shape (n_features,)
+        :initial_guess: array of shape (n_features,)
+
             A coulomb matrix to use as the initial guess to the gradient ascent in the hope that the closest local
             maximum will be found.
 
-        Returns
-        -------
-        self.x_square_tot: list of arrays of shape (num_atoms, num_atoms)
+        :return: list of arrays of shape (num_atoms, num_atoms)
+
             each numpy array is the input for a particular neuron that gives the highest activation.
 
         """
@@ -584,13 +582,13 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         This function calculates the inputs that would give the highest activations of the neurons in the first hidden
         layer of the neural network. It then plots them as a heat map.
 
-        Parameters
-        ----------
-        initial_guess: array of shape (n_features,)
+        :initial_guess: array of shape (n_features,)
+
             A coulomb matrix to use as the initial guess to the gradient ascent in the hope that the closest local
             maximum will be found.
 
-        write_plot: boolean, default False
+        :write_plot: boolean, default False
+
             If this is true, the plot is written to a png file.
         """
 
@@ -625,13 +623,13 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         This function calculates the inputs that would give the highest activations of the neurons in the first hidden
         layer of the neural network. It then plots them as a netwrok graph.
 
-        Parameters
-        ----------
-        initial_guess: array of shape (n_features,)
+        :initial_guess: array of shape (n_features,)
+
             A coulomb matrix to use as the initial guess to the gradient ascent in the hope that the closest local
             maximum will be found.
 
-        write_plot: boolean, default False
+        :write_plot: boolean, default False
+
             If this is true, the plot is written to a png file.
         """
         import networkx as nx
