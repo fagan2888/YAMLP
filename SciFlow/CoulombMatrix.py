@@ -3,32 +3,24 @@ from numpy import linalg as LA
 from scipy.special import factorial
 
 class CoulombMatrix():
-    """
-    This is the class that creates Coulomb matrix and then has functions to create the Eigen spectrum, the sorted coulomb
-    matrix and the randomly sorted coulomb matrix descriptors.
+    """This class contains the functions required to generate the following variations of  Coulomb matrices (with nuclear charges) for M configurations of N atoms:
 
-    __init__: initialises the following quantities:
-        rawX: list of lists, where each of the inner lists represents a configuration of a sample.
-            An example is shown below:
-            [ [ 'C', 0.1, 0.3, 0.5, 'H', 0.0, 0.5 1.0, 'H', 0.0, -0.5, -1.0, ....], [...], ... ]
-            The labels of the atoms are strings. The coordinates are floats.
-        Z: A dictionary of nuclear charges. The keys are the atoms labels.
-        n_atoms: number of atoms in the system - int
-        n_samples: number of samples collected
-        coulMatrix: the flattened coulomb matrix for each sample. - numpy array of size (n_samples, n_atoms^2)
+    1. Standard *unsorted* and *unrandomised* matrix
+    2. The eigen spectrum of the Coulomb matrix: vector containing the eigenvalues in descending order
+    3. The sorted Coulomb matrix
+    4. The randomly sorted Coulomb matrix
+    5. The trimmed Coulomb matrix: this is the triangular part of the standard Coulomb matrix
+    6. The partially randomised Coulomb matrix
 
+    The explanation for how the matrices 1 to 4 are constructed can be found in this `paper <http://pubs.acs.org/doi/abs/10.1021/ct400195d/>`_.
 
-    __generateCM: generates coulMatrix
-    generateES: generates the eigen spectrum descriptor from coulMatrix
-    generateSCM: generates the sorted coulomb matrix descriptor from coulMatrix
-    generateRSCM: generates the randomly sorted coulomb matrix descriptor from coulMatrix
-    getCM: returns coulMatrix
+    When it is initialised, the raw data of each configuration with atom labels and their xyz coordinates is passed.
+
+    :matrixX: list of lists, where each of the inner lists represents a sample configuration. An example is shown below: [ [ 'C', 0.1, 0.3, 0.5, 'H', 0.0, 0.5 1.0, 'H', 0.0, -0.5, -1.0, ....], [...], ... ].
+
     """
 
-    def __init__(self, matrixX = None):
-        """
-        :param matrixX: list of lists of atom labels and their coordinates.
-        """
+    def __init__(self, matrixX):
 
         self.rawX = matrixX
         self.Z = {
@@ -47,12 +39,17 @@ class CoulombMatrix():
         print "Initialised the Coulomb matrix. \n"
 
     def getCM(self):
+        """
+        This function returns the standard Coulomb matrix. Each line is the flattened matrix for each sample.
+
+        :return: numpy array of shape (n_samples, n_atoms**2)
+        """
         return self.coulMatrix
 
     def __generateCM(self):
         """
-        This function generates the Coulomb Matrix descriptor as a numpy array of size (n_samples, n_atoms^2)
-        :return: None
+        This function generates the standard Coulomb Matrix descriptor as a numpy array of size (n_samples, n_atoms^2).
+        Each line is the matrix for one sample.
         """
 
         # This is a coulomb matrix for one particular sample in the dataset
@@ -87,8 +84,9 @@ class CoulombMatrix():
 
     def generateES(self):
         """
-        This function turns the Coulomb matrix into its eigenspectrum.
-        :return: numpy array of size (n_samples, n_atoms)
+        This function calculates the eigen spectrum from the standard Coulomb matrix.
+
+        :return: numpy array of shape (n_samples, n_atoms)
         """
 
         self.coulES = np.zeros((self.n_samples, self.n_atoms))
@@ -102,8 +100,10 @@ class CoulombMatrix():
 
     def generateSCM(self):
         """
-        This function calculates the sorted coulomb matrix starting from the original coulomb matrix.
-        :return: the sorted coulomb matrix - numpy array of size (N_samples, n_atoms^2)
+        This function calculates the sorted Coulomb matrix starting from the standard matrix. It then returns the
+        triangular part of the matrix.
+
+        :return: numpy array of size (N_samples, n_atoms*(n_atoms+1)/2)
         """
 
         coulS = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5)))
@@ -111,7 +111,7 @@ class CoulombMatrix():
         for i in range(self.n_samples):
             tempCM = np.reshape(self.coulMatrix[i, :], (self.n_atoms, self.n_atoms))
 
-            # Sorting the Coulomb matrix rows in descending order of the norm of each row.
+            # Sorting the Coulomb matrix rows and columns in descending order of the norm of each row.
             rowNorms = np.zeros(self.n_atoms)
             for j in range(self.n_atoms):
                 rowNorms[j] = LA.norm(tempCM[j, :])
@@ -127,12 +127,12 @@ class CoulombMatrix():
 
     def generateRSCM(self, y_data, numRep=5):
         """
-        This function creates the Randomy sorted Coulomb matrix starting from the Coulomb matrix and it transforms the
-        y part of the data so that there are numRep copies of each energy.
-        :y_data: a numpy array of energy values of size (N_samples,)
-        :param numRep: number of randomly sorted matrices to be generated per sample - int
-        :return: the randomly sorted CM - numpy array of size (N_samples*numRep, n_atoms^2),
-                y_bigdata: a numpy array of energy values of size (N_samples*numRep,)
+        This function creates the randomy sorted Coulomb matrix starting from the standard Coulomb matrix and it
+        transforms the y part of the data so that there are numRep copies of each energy.
+
+        :y_data: a numpy array of energy values of shape (N_samples,)
+        :numRep: number of randomly sorted matrices to be generated per sample - int
+        :return: the randomly sorted CM - numpy array of size (N_samples*numRep, n_atoms^2) and a numpy array of energy values of size (N_samples*numRep,)
         """
 
         # Checking reasonable numRep value
@@ -176,8 +176,9 @@ class CoulombMatrix():
 
     def generateTrimmedCM(self):
         """
-        This function returns the trimmed version of the Coulomb matrix.
-        :return: the trimmed coulomb matrix. NP array of shape (self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5))
+        This function returns the flattened triangular part of the original Coulomb matrix for each sample in the data.
+
+        :return: numpy array of shape (n_samples, n_atoms * (n_atoms+1)/2 )
         """
         self.trimCM = np.zeros((self.n_samples, int(self.n_atoms * (self.n_atoms+1) * 0.5)))
 
@@ -189,9 +190,9 @@ class CoulombMatrix():
 
     def trimAndFlat(self, X):
         """
-        This function takes a coulomb matrix and trims it so that only the upper triangular part of the matrix is kept.
-        It returns the flattened trimmed array.
-        :param X: Coulomb matrix for one sample. numpy array of shape (n_atoms, n_atoms)
+        This function takes one Coulomb matrix and returns the triangular part of it as a vector.
+
+        :X: Coulomb matrix for *one* sample. numpy array of shape (n_atoms, n_atoms)
         :return: numpy array of shape (n_atoms*(n_atoms+1)/2, )
         """
         size = int(self.n_atoms * (self.n_atoms+1) * 0.5)
@@ -207,11 +208,13 @@ class CoulombMatrix():
 
     def generatePRCM(self, y_data, numRep=2):
         """
-        This function generates a coulomb matrix with randomisation but where only the coloumns of elements that are the
-        same are swapped around.
-        :param y_data: the y_data in a (n_samples,) shape
-        :param numRep: The largest number of swaps to do
-        :return: the new Coulomb matrix (n_samples*n, n_features) and the y array in shape (n_samples*min(n_perm, numRep),)
+        This function generates the partially randomised Coulomb matrix. This consists in a matrix where the columns and
+        rows corresponding to each atom are ordered with increasing nuclear charge and when there are atoms with the
+        same nuclear charge the columns and rows are randomised.
+
+        :y_data: the energies for each sample - numpy array of shape (n_samples,)
+        :numRep: The largest number of permutations to be carried out
+        :return: the new Coulomb matrix - numpy array of shape (n_samples*n, n_features) and the y array of shape (n_samples*min(n_perm, numRep),)
         """
         PRCM = []
 
@@ -269,9 +272,18 @@ class CoulombMatrix():
     def permutations(self, col_idx, num_perm, n_atoms):
         """
         This function takes a list of the columns that need permuting. It returns num_perm arrays of permuted indexes.
-        :param col_idx: list of list of columns that need swapping around
-        :param num_perm: number of permutations desired (int)
-        :param n_atoms: total number of atoms in the system
+        It returns a numpy array where each row is a different permutation of the indexes. For example, if col_idx was:
+
+        ``[[1 2 3], [4 5]]``
+
+        This means that the columns 1 2 3 correspond to atoms with identical nuclear charge and 4 5 also have the same
+        nuclear charge among them. if ``num_perm = 3``, then this function could return:
+
+        ``[[3 2 1 4 5], [2 1 3 4 5], [3 1 2 5 4]]``
+
+        :col_idx: list of list of columns' indexes that need permuting
+        :num_perm: number of permutations desired (int)
+        :n_atoms: total number of atoms in the system
         :return: an array of shape (num_perm, n_atoms) of permuted indexes.
         """
         all_perm = np.zeros((num_perm, n_atoms), dtype=np.int8)
@@ -287,9 +299,9 @@ class CoulombMatrix():
 
     def plot(self, X):
         """
-        This function plots a coulomb matrix.
-        :param X: A flat coulomb matrix
-        :return: None
+        This function plots a Coulomb matrix as a heatmap.
+
+        :X: A flat coulomb matrix - numpy array of shape (n_atoms**2,1)
         """
         import seaborn as sns
 
@@ -322,6 +334,6 @@ if __name__ == "__main__":
     # X, y, Q = ImportData.loadPd_q("/Users/walfits/Repositories/trainingNN/dataSets/PBE_B3LYP/pbe_b3lyp_partQ_rel.csv")
     # CM = CoulombMatrix(matrixX=X)
     # X_coul = CM.getCM()
-    # CM.plot(X_coul[2])
+    CM.plot(X_coul[2])
 
 
