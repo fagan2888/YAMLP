@@ -1,3 +1,5 @@
 .ipynb_checkpoints
 *.pyc
 /Documentation/build/
+/numba-test/
+/cython-test/
