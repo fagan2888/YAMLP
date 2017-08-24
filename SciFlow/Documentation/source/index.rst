@@ -23,6 +23,7 @@ Content
    :maxdepth: 2
    :caption: Examples:
 
+   simplex.rst
    examples.rst
 
 

@@ -1,4 +1,4 @@
-Example 1: Training a model with the Coulomb matrix
+Example 2: Training a model with the Coulomb matrix
 ****************************************************
 
 In order to make this example work, import the following modules::

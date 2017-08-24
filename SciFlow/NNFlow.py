@@ -1,6 +1,6 @@
 """
-This code implements a Tensorflow single hidden layer neural network in a way that is compatible with the grid search method of
-Scikit learn.
+This module implements a Tensorflow single hidden layer neural network as a Scikit learn estimator that is compatible
+with Osprey for hyper parameter optimisation.
 """
 
 import numpy as np
@@ -687,12 +687,11 @@ if __name__ == "__main__":
 
     estimator = MLPRegFlow(hidden_layer_sizes=(5,), learning_rate_init=0.01, max_iter=5000, alpha=0)
     # pickle.dump(silvia, open('../tests/model.pickl','wb'))
-    x = np.arange(-2.0, 2.0, 0.1)
+    x = np.arange(-2.0, 2.0, 0.05)
     X = np.reshape(x, (len(x), 1))
     y = np.reshape(X ** 3, (len(x),))
 
     estimator.fit(X, y)
-    estimator.plotTrainCost()
     y_pred = estimator.predict(X)
 
     #  Visualisation of predictions
@@ -705,7 +704,7 @@ if __name__ == "__main__":
 
     # Correlation plot
     fig3, ax3 = plt.subplots(figsize=(6,6))
-    ax3.scatter(y, y_pred, label="CAS-SCF", marker="o", c="r")
+    ax3.scatter(y, y_pred, marker="o", c="r")
     ax3.set_xlabel('original y')
     ax3.set_ylabel('prediction y')
     plt.show()
