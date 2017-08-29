@@ -12,6 +12,7 @@ data set. Plot the distribution of the errors and decide what to do with the out
 
 import numpy as np
 from sklearn.cluster import KMeans
+from sklearn.cluster import MiniBatchKMeans
 from sklearn.metrics.pairwise import euclidean_distances
 import matplotlib.pyplot as plt
 import pandas as pd
@@ -62,6 +63,9 @@ class Pruning():
 
         self.__plot_elbow(n_centres, tot_sum_of_sq)
 
+    def get_X(self):
+        return self.X
+
     def clustering(self, n_clusters):
         """
         This function clusters the data into n_clusters and returns the indexes of the data points in each cluster that
@@ -70,10 +74,14 @@ class Pruning():
         :n_clusters: int
         :return: array of int
         """
-        kmeans = KMeans(n_clusters=n_clusters).fit(self.X)
+        if n_clusters < 5000:
+            kmeans = KMeans(n_clusters=n_clusters).fit(self.X)
+        else:
+            kmeans = MiniBatchKMeans(n_clusters=n_clusters).fit(self.X)
+
         clusters_idx = kmeans.predict(self.X)  # indices of which cluster each point belongs to
         self.centres = kmeans.cluster_centers_
-        dist_mat = kmeans.transform(X)  # (n_samples, n_clusters) matrix of distances of each sample to each centre
+        dist_mat = kmeans.transform(self.X)  # (n_samples, n_clusters) matrix of distances of each sample to each centre
 
         self.idx_clust = np.zeros((n_clusters,))
 
@@ -171,15 +179,15 @@ if __name__ == "__main__":
 
     from sklearn.datasets.samples_generator import make_blobs
 
-    centers = [[6, 6], [-3, -3], [3, -3]]
+    centers = [[18, 18], [-18, -18], [18, -18]]
     n_clusters = len(centers)
-    X, y = make_blobs(n_samples=1500, centers=centers, cluster_std=5)
+    X, y = make_blobs(n_samples=8000, centers=centers, cluster_std=5)
 
     pr = Pruning(X, y)
     # pr.elbow(range(1,30))
-    n_clusters = 17
+    n_clusters = 6000
     idx_clust = pr.clustering(n_clusters=n_clusters)
-    idx_fft = pr.fft_idx(10)
+    idx_fft = pr.fft_idx(50)
 
 
 
