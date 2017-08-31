@@ -8,6 +8,7 @@ Stanford University) in the tflow.py module of the AMP package.
 from sklearn.base import BaseEstimator, ClassifierMixin
 import tensorflow as tf
 import numpy as np
+import matplotlib.pyplot as plt
 
 
 class BPNN(BaseEstimator, ClassifierMixin):
@@ -41,8 +42,14 @@ class BPNN(BaseEstimator, ClassifierMixin):
         """
         self.n_samples = X.shape[0]
 
+        # Modifying shape of y to be compatible with tensorflow
+        y = np.reshape(y, (len(y), 1))
+
+        # Creating a place holder for y
+        y_tf = tf.placeholder(tf.float32, [None, 1])
+
         # Make a list of unique elements labels
-        unique_ele = self.__unique_elements()
+        self.unique_ele = self.__unique_elements()
 
         # Split the data into the descriptors for the different atoms
         X_input = self.__split_input(X)
@@ -53,37 +60,78 @@ class BPNN(BaseEstimator, ClassifierMixin):
         for ii in range(0,len(self.labels),2):
             inputs.append(tf.placeholder(tf.float32, [None, self.labels[ii+1]]))
 
-        # Create a dictionary that maps the python data to the tf placeholders
-        feeddict = {i: d for i, d in zip(inputs, X_input)}
-
         # Generate the weights and the biases that match the network architecture
         self.weights = {}
         self.biases = {}
 
-        for key, value in unique_ele.iteritems():
+        for key, value in self.unique_ele.iteritems():
             w, b = self.__generate_weights(value)
             self.weights[key] = w
             self.biases[key] = b
 
-        # Evaluate the model for each atom and sum the results
+        # Evaluate the model for each atom
         model_list = []
         for ii in range(len(inputs)):
             lab = self.labels[2*ii]
             model_atom = self.__generate_model(inputs[ii], lab)
             model_list.append(model_atom)
 
+        # Summing the results to get the total energy
         model_tot = tf.add_n(model_list)
+
+        # Calculating the cost function with L2 regularisation term
+        cost = self.__reg_cost(model_tot, y_tf)
+
+        # Training step
+        optimiser = tf.train.AdamOptimizer(learning_rate=self.learning_rate_init).minimize(cost)
 
         # Initialisation of the model
         init = tf.global_variables_initializer()
 
         with tf.Session() as sess:
             sess.run(init)
-            ans = sess.run(model_tot, feed_dict=feeddict)
-            print ans
+            self.cost_list = []
 
+            for iter in range(self.max_iter):
 
+                # This is the total number of batches in which the training set is divided
+                n_batches = int(self.n_samples / self.batch_size)
+                # This will be used to calculate the average cost per iteration
+                avg_cost = 0
 
+                # Learning over the batches of data
+                for i in range(n_batches):
+
+                    # Create a dictionary that maps the python data to the tf placeholders
+                    idx1 = i * self.batch_size
+                    idx2 = (i + 1) * self.batch_size
+                    feeddict = {i: d[idx1:idx2, :] for i, d in zip(inputs, X_input)}
+                    feeddict[y_tf] = y[idx1:idx2]
+                    opt, c = sess.run([optimiser, cost], feed_dict=feeddict)
+                    avg_cost += c / n_batches
+
+                self.cost_list.append(avg_cost)
+
+    def plot_cost(self):
+        """
+        This function plots the cost as a function of training iterations. It can only be called after the model has
+        been trained.
+
+        :return: None
+        """
+        try:
+            self.cost_list
+        except AttributeError:
+            raise AttributeError("No values for the cost. Make sure that the model has been trained with the function "
+                            "fit().")
+
+        fig, ax = plt.subplots(figsize=(6, 6))
+        ax.plot(self.cost_list, label="Train set", color="b")
+        ax.set_xlabel('Number of iterations')
+        ax.set_ylabel('Cost Value')
+        ax.legend()
+        plt.yscale("log")
+        plt.show()
 
     def __unique_elements(self):
         """
@@ -105,7 +153,7 @@ class BPNN(BaseEstimator, ClassifierMixin):
         looking at the size of the hidden layers. The weights are initialised randomly.
 
         :n_input_layer: number of features in the descriptor for one atom - int
-        :return: lists (of length n_hidden_layers + 2) of tensorflow variables
+        :return: lists (of length n_hidden_layers + 1) of tensorflow variables
         """
 
         weights = []
@@ -165,16 +213,45 @@ class BPNN(BaseEstimator, ClassifierMixin):
 
         return split_X
 
+    def __reg_cost(self, nn_energy, qm_energy):
+        """
+        This function calculates the cost function with L2 regularisation. It requires the energies predicted by the
+        neural network and the energies calculated through quantum mechanics.
+
+        :nn_energy: tf.Variable of shape [n_samples, 1]
+        :qm_energy: tf.placeholder of shape [n_samples, 1]
+        :return: tf.Variable of shape [1]
+        """
+
+        err = tf.subtract(qm_energy, nn_energy)
+        cost = tf.nn.l2_loss(err)   # scalar
+        reg_l2 = tf.Variable(tf.zeros([1])) # scalar
+
+        for key, value in self.unique_ele.iteritems():
+            for ii in range(len(self.hidden_layer_sizes)+1):
+                reg_l2 = tf.add(reg_l2, tf.nn.l2_loss(self.weights[key][ii]))
+
+        reg_l2 = reg_l2 * self.alpha
+        cost_reg = tf.add(cost, reg_l2)
+
+        return cost_reg
 
 if __name__ == "__main__":
 
-    def testMatrix():
+    def testMatrix1():
         X = np.array([[0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.5, 0.5, 0.5, 0.5, 0.7, 0.5, 0.5, 0.5, 0.8 ],
              [0.1, 0.0, 0.0, 0.9, 0.0, 0.0, -0.5, -0.5, -0.5, 0.1, 0.5, 0.5, 0.6, 0.5, 0.5,],
                 [-0.1, 0.0, 0.0, 1.1, 0.0, 0.0, 1.0, 1.0, 1.0, 0.3, 0.5, 0.3, 1.5, 2.5, 0.5,]])
         y = np.array([4.0, 3.0, 1.0])
         return X, y
 
-    X, y = testMatrix()
-    nn = BPNN(hidden_layer_sizes=(3, 2), labels=['N', 3, 'C', 3, 'C', 3, 'H', 3, 'H', 3])
+    def testMatrix2():
+        X = np.random.rand(200, 15)
+        y = np.random.rand(200)
+
+        return X, y
+
+    X, y = testMatrix2()
+    nn = BPNN(hidden_layer_sizes=(50, 10, 5), labels=['N', 3, 'C', 3, 'C', 3, 'H', 3, 'H', 3], max_iter=300, batch_size=20)
     nn.fit(X, y)
+    nn.plot_cost()
