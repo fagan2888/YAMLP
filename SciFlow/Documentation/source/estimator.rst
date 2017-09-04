@@ -1,5 +1,5 @@
-Scikit learn estimator with TensorFlow
-***************************************
+Scikit wrapper of neural network with TensorFlow
+*************************************************
 
 .. automodule:: NNFlow
 

@@ -9,9 +9,11 @@ from sklearn.base import BaseEstimator, ClassifierMixin
 import tensorflow as tf
 import numpy as np
 import matplotlib.pyplot as plt
-from sklearn.utils.validation import check_X_y
 import pandas as pd
 import seaborn as sns
+from sklearn.metrics import r2_score
+from sklearn.metrics import mean_squared_error
+from sklearn.metrics import mean_absolute_error
 
 
 class BPNN(BaseEstimator, ClassifierMixin):
@@ -43,6 +45,9 @@ class BPNN(BaseEstimator, ClassifierMixin):
         :X: numpy array of shape (n_samples, n_features)
         :y: array of shape (n_samples,)
         """
+        # Some useful data
+        self.n_samples = X.shape[0]
+        self.checkBatchSize()
 
         # Modifying shape of y to be compatible with tensorflow and creating a placeholder
         y = np.reshape(y, (len(y), 1))
@@ -50,8 +55,8 @@ class BPNN(BaseEstimator, ClassifierMixin):
         with tf.name_scope('input_y'):
             y_tf = tf.placeholder(tf.float32, [None, 1])
 
-        # Splitting the X into the different descriptors
-        X_input = self.__split_input(X)
+        # # Splitting the X into the different descriptors
+        # X_input = self.__split_input(X)
 
         # Making a list of the unique elements and one of all the elements in order
         self.unique_ele, self.all_atoms = self.__unique_elements()
@@ -68,13 +73,13 @@ class BPNN(BaseEstimator, ClassifierMixin):
 
         # Declaring the weights
         with tf.name_scope('weights'):
-            all_weights = []
-            all_biases = []
+            all_weights = {}
+            all_biases = {}
 
             for key, value in self.unique_ele.iteritems():
                 weights, biases = self.__generate_weights(value)
-                all_weights.append((key, weights))
-                all_biases.append((key, biases))
+                all_weights[key] = weights
+                all_biases[key] = biases
 
                 tf.summary.histogram("weights_in", weights[0])
                 for ii in range(len(self.hidden_layer_sizes) - 1):
@@ -105,8 +110,6 @@ class BPNN(BaseEstimator, ClassifierMixin):
 
         # Initialisation of the model
         init = tf.global_variables_initializer()
-        feeddict = {i: d for i, d in zip(inputs, X_input)}
-        feeddict[y_tf] = y
         merged_summary = tf.summary.merge_all()
 
         with tf.Session() as sess:
@@ -115,23 +118,35 @@ class BPNN(BaseEstimator, ClassifierMixin):
             sess.run(init)
 
             for i in range(self.max_iter):
-                sess.run(optimiser, feed_dict=feeddict)
-                c = sess.run(cost, feed_dict=feeddict)
-                self.cost_list.append(c)
-                summary = sess.run(merged_summary, feed_dict=feeddict)
-                summary_writer.add_summary(summary, i)
+                # This is the total number of batches in which the training set is divided
+                n_batches = int(self.n_samples / self.batch_size)
+                # This will be used to calculate the average cost per iteration
+                avg_cost = 0
+                # Learning over the batches of data
+                for i in range(n_batches):
+                    batch_x = X[i * self.batch_size:(i + 1) * self.batch_size, :]
+                    batch_y = y[i * self.batch_size:(i + 1) * self.batch_size, :]
+                    X_batch = self.__split_input(batch_x)
+                    feeddict = {i: d for i, d in zip(inputs, X_batch)}
+                    feeddict[y_tf] = batch_y
+                    opt, c = sess.run([optimiser, cost], feed_dict=feeddict)
+                    avg_cost += c / n_batches
+                    summary = sess.run(merged_summary, feed_dict=feeddict)
+                    summary_writer.add_summary(summary, i)
+                self.cost_list.append(avg_cost)
 
-            # Saving the weights so that they can be used in the predict function
-            self.all_weights = []
-            self.all_biases = []
-            for ii in range(len(all_weights)):
+
+            self.all_weights = {}
+            self.all_biases = {}
+
+            for key, value in self.unique_ele.iteritems():
                 w = []
                 b = []
-                for jj in range(len(all_weights[ii][1])):
-                    w.append(sess.run(all_weights[ii][1][jj]))
-                    b.append(sess.run(all_biases[ii][1][jj]))
-                self.all_weights.append((all_weights[ii][0], w))
-                self.all_biases.append((all_biases[ii][0], b))
+                for ii in range(len(all_weights[key])):
+                    w.append(sess.run(all_weights[key][ii]))
+                    b.append(sess.run(all_biases[key][ii]))
+                self.all_weights[key]  = w
+                self.all_biases[key] = b
 
     def predict(self, X):
         """
@@ -164,22 +179,23 @@ class BPNN(BaseEstimator, ClassifierMixin):
         data = zip(self.all_atoms, inputs)
 
         # Making the weights into tf.variables
-        w = []
-        b = []
-        for ii in range(len(self.all_weights)):
-            weights = []
-            biases = []
-            for jj in range(len(self.all_weights[ii][1])):
-                weights.append(tf.Variable(self.all_weights[ii][1][jj]))
-                biases.append(tf.Variable(self.all_biases[ii][1][jj]))
-            w.append((self.all_weights[ii][0], weights))
-            b.append((self.all_biases[ii][0], biases))
+        all_weights = {}
+        all_biases = {}
+
+        for key, value in self.unique_ele.iteritems():
+            w = []
+            b = []
+            for ii in range(len(self.all_weights[key])):
+                w.append(tf.Variable(self.all_weights[key][ii]))
+                b.append(tf.Variable(self.all_biases[key][ii]))
+            all_weights[key] = w
+            all_biases[key] = b
 
         # Evaluating the model
         with tf.name_scope("atom_nn"):
             all_atom_ene = []
             for ii in range(len(self.all_atoms)):
-                atom_ene = self.__atom_energy(data[ii], w, b)
+                atom_ene = self.__atom_energy(data[ii], all_weights, all_biases)
                 all_atom_ene.append(atom_ene)
 
         # Summing the results to get the total energy
@@ -302,29 +318,22 @@ class BPNN(BaseEstimator, ClassifierMixin):
         the weights/biases and their label.
 
         :zip_data: a two item list where the first item is the atom label (string) and the second is a tf.placeholder
-        :all_weights: list of tuples. each tuple contains an atom label and a list of weights (of length [n_hidden_layers+1,].
-        :all_biases: list of tuples. each tuple contains an atom label and a list of biases (of length [n_hidden_layers+1,].
-        :return:
+        :all_weights: Dictionaries where the key is the atom label and the value is a list of weights (of length [n_hidden_layers+1,].
+        :all_biases: Dictionaries where the key is the atom label and the value is a list of biases (of length [n_hidden_layers+1,].
+        :return: tf.tensor containing the activation of the output layer.
         """
         label = zip_data[0]
         tf_input = zip_data[1]
 
         # Obtaining the index of the weights that correspond to the right atom
-        index = -1
-        for jj in range(len(all_weights)):
-            if all_weights[jj][0] == label:
-                index = jj
-        if index == -1:
-            raise ValueError("There is a problem with the indices of the weights.")
-
-        z = tf.add(tf.matmul(tf_input, tf.transpose(all_weights[index][1][0])), all_biases[index][1][0])
+        z = tf.add(tf.matmul(tf_input, tf.transpose(all_weights[label][0])), all_biases[label][0])
         h = tf.nn.tanh(z)
 
-        for ii in range(len(self.hidden_layer_sizes)-1):
-            z = tf.add(tf.matmul(h, tf.transpose(all_weights[index][1][ii + 1])), all_biases[index][1][ii + 1])
+        for ii in range(len(self.hidden_layer_sizes) - 1):
+            z = tf.add(tf.matmul(h, tf.transpose(all_weights[label][ii + 1])), all_biases[label][ii + 1])
             h = tf.nn.tanh(z)
 
-        z = tf.add(tf.matmul(h, tf.transpose(all_weights[index][1][-1])), all_biases[index][1][-1])
+        z = tf.add(tf.matmul(h, tf.transpose(all_weights[label][-1])), all_biases[label][-1])
 
         return z
 
@@ -362,9 +371,10 @@ class BPNN(BaseEstimator, ClassifierMixin):
         cost = tf.nn.l2_loss(err, name="unreg_cost")   # scalar
         reg_l2 = tf.Variable(tf.zeros([1]), name="reg_term") # scalar
 
-        for item in all_weights:
-            for ii in range(len(self.hidden_layer_sizes)+1):
-                reg_l2 = tf.add(reg_l2, tf.nn.l2_loss(item[1][ii]))
+        for key, value in self.unique_ele.iteritems():
+            for ii in range(len(self.hidden_layer_sizes) + 1):
+                reg_l2 = tf.add(reg_l2, tf.nn.l2_loss(all_weights[key][ii]))
+
 
         reg_l2 = tf.scalar_mul(self.alpha, reg_l2)
         cost_reg = tf.add(cost, reg_l2, name="reg_cost")
@@ -382,15 +392,111 @@ class BPNN(BaseEstimator, ClassifierMixin):
             checked whether it is smaller than 1 or larger than the total number of samples.
         """
         if self.batch_size == 'auto':
-            batch_size = min(100, self.n_samples)
+            self.batch_size = min(100, self.n_samples)
         else:
             if self.batch_size < 1 or self.batch_size > self.n_samples:
                 print "Warning: Got `batch_size` less than 1 or larger than sample size. It is going to be clipped"
-                batch_size = np.clip(self.batch_size, 1, self.n_samples)
+                self.batch_size = np.clip(self.batch_size, 1, self.n_samples)
             else:
-                batch_size = self.batch_size
+                self.batch_size = self.batch_size
 
-        return batch_size
+    def score(self, X, y, sample_weight=None):
+        """
+        Returns the mean accuracy on the given test data and labels. It calculates the R^2 value. It is used during the
+        training of the model.
+
+        :X: array of shape (n_samples, n_features)
+
+            This contains the input data with samples in the rows and features in the columns.
+
+        :y: array of shape (n_samples,)
+
+            This contains the target values for each sample in the X matrix.
+
+        :sample_weight: array of shape (n_samples,)
+
+            Sample weights (not sure what this is, but i need it for inheritance from the BaseEstimator)
+
+        :return: double
+            This is a score between -inf and 1 (best value is 1) that tells how good the correlation plot is.
+        """
+
+        y_pred = self.predict(X)
+        r2 = r2_score(y, y_pred)
+        return r2
+
+    def scoreFull(self, X, y):
+        """
+        This scores the predictions more thouroughly than the function 'score'. It calculates the r2, the root mean
+        square error, the mean absolute error and the largest positive/negative outliers. They are all in the units of
+        the data passed.
+
+        :X: array of shape (n_samples, n_features)
+
+            This contains the input data with samples in the rows and features in the columns.
+
+        :y: array of shape (n_samples,)
+
+            This contains the target values for each sample in the X matrix.
+
+        :return:
+        :r2: double
+
+            This is a score between -inf and 1 (best value is 1) that tells how good the correlation plot is.
+
+        :rmse: double
+
+            This is the root mean square error
+
+        :mae: double
+
+            This is the mean absolute error
+
+        :lpo: double
+
+            This is the largest positive outlier.
+
+        :lno: double
+
+            This is the largest negative outlier.
+
+        """
+
+        y_pred = self.predict(X)
+        r2 = r2_score(y, y_pred)
+        rmse = np.sqrt(mean_squared_error(y, y_pred))
+        mae = mean_absolute_error(y, y_pred)
+        lpo, lno = self.largestOutliers(y, y_pred)
+
+        return r2, rmse, mae, lpo, lno
+
+    def largestOutliers(self, y_true, y_pred):
+        """
+        This function calculates the larges positive and negative outliers from the predictions of the neural net.
+
+        :y_true: array of shape (n_samples,)
+
+            This contains the target values for each sample.
+
+        :y_pred: array of shape (n_samples,)
+
+            This contains the neural network predictions of the target values for each sample.
+
+        :return:
+
+        :lpo: double
+
+            This is the largest positive outlier.
+
+        :lno: double
+
+            This is the largest negative outlier.
+        """
+        diff = y_pred - y_true
+        lpo = np.amax(diff)
+        lno = - np.amin(diff)
+
+        return lpo, lno
 
 if __name__ == "__main__":
 
@@ -405,7 +511,7 @@ if __name__ == "__main__":
     def testMatrix2():
         from sklearn import preprocessing as preproc
         n_samples = 50
-        X = np.zeros((n_samples, 1))
+        X = np.zeros((n_samples, 2))
         for i in range(n_samples):
             X[i,0] = i
         y = range(0,n_samples)
@@ -414,7 +520,7 @@ if __name__ == "__main__":
 
     X, y = testMatrix2()
 
-    nn = BPNN(hidden_layer_sizes=(5,), labels=[('N', 1)], max_iter=800, alpha=0.0, learning_rate_init=0.1)
-    nn.fit2(X, y)
+    nn = BPNN(hidden_layer_sizes=(5,), labels=[('N', 1), ('C',1)], max_iter=400, alpha=0.0, learning_rate_init=0.01, batch_size=5)
+    nn.fit(X, y)
     nn.plot_cost()
     nn.correlationPlot(X, y)

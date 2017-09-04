@@ -17,6 +17,8 @@ Content
    cmpc.rst
    importdata.rst
    estimator.rst
+   estimator2.rst
+   pruning.rst
 
 
 .. toctree::
