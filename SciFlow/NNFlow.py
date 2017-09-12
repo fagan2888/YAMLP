@@ -1,6 +1,5 @@
 """
-This module implements a Tensorflow single hidden layer neural network as a Scikit learn estimator that is compatible
-with Osprey for hyper parameter optimisation.
+This module implements a Tensorflow neural network (with scalar output) as a Scikit learn estimator.
 """
 
 import numpy as np
@@ -20,20 +19,14 @@ import pandas as pd
 
 class MLPRegFlow(BaseEstimator, ClassifierMixin):
     """
-    Neural-network with one hidden layer to do regression.
+    Neural-network with multiple hidden layers to do regression.
     This model optimises the squared error function using the Adam optimiser.
 
 
-    :hidden_layer_sizes: Tuple, length = number of hidden layers, default (0,).
+    :hidden_layer_sizes: Tuple, length = number of hidden layers, default (5,).
 
         The ith element represents the number of neurons in the ith
-        hidden layer. In this version, only one hidden layer is supported, so it shouldn't hav
-        length larger than 1.
-
-    :n_units: int, default 45.
-
-        Number of neurons in the first hidden layer. This parameter has been added as a hack to make it work with
-        Osprey.
+        hidden layer.
 
     :alpha: float, default 0.0001
 
@@ -55,7 +48,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
     """
 
-    def __init__(self, hidden_layer_sizes=(0,), n_units=45, alpha=0.0001, batch_size='auto', learning_rate_init=0.001,
+    def __init__(self, hidden_layer_sizes=(5,), alpha=0.0001, batch_size='auto', learning_rate_init=0.001,
                  max_iter=80):
 
         # Initialising the parameters
@@ -63,19 +56,9 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
         self.batch_size = batch_size
         self.learning_rate_init = learning_rate_init
         self.max_iter = max_iter
-
-        # This is needed for Osprey, because you can only do parameter optimisation by passing integers or floats,
-        # not tuples. So here we need a way of dealing with this.
-        if hidden_layer_sizes == (0,):
-            self.hidden_layer_sizes = (n_units,)
-        else:
-            self.hidden_layer_sizes = hidden_layer_sizes
+        self.hidden_layer_sizes = hidden_layer_sizes
 
         # Initialising parameters needed for the Tensorflow part
-        self.w1 = 0
-        self.b1 = 0
-        self.w2 = 0
-        self.b2 = 0
         self.alreadyInitialised = False
         self.trainCost = []
         self.testCost = []
@@ -115,11 +98,6 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             check_X_y(X_test, y_test)
             y_test = np.reshape(y_test, (len(y_test), 1))
 
-        # Check that the architecture has only 1 hidden layer
-        if len(self.hidden_layer_sizes) != 1:
-            raise ValueError("hidden_layer_sizes expected a tuple of size 1, it has one of size %d. "
-                             "This model currently only supports one hidden layer. " % (len(self.hidden_layer_sizes)))
-
         self.n_feat = X.shape[1]
         self.n_samples = X.shape[0]
 
@@ -132,21 +110,21 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
         # This part either randomly initialises the weights and biases or restarts training from wherever it was stopped
         if self.alreadyInitialised == False:
-            eps = 0.01
-            weights1 = tf.Variable(tf.random_normal([self.hidden_layer_sizes[0], self.n_feat]) * 2 * eps - eps)
-            bias1 = tf.Variable(tf.zeros([self.hidden_layer_sizes[0]]))
-            weights2 = tf.Variable(tf.random_normal([1, self.hidden_layer_sizes[0]]) * 2 * eps - eps)
-            bias2 = tf.Variable(tf.zeros([1]))
-            parameters = [weights1, bias1, weights2, bias2]
+            weights, biases = self.__generate_weights()
             self.alreadyInitialised = True
         else:
-            parameters = [tf.Variable(self.w1), tf.Variable(self.b1), tf.Variable(self.w2), tf.Variable(self.b2)]
+            weights = []
+            biases = []
 
-        model = self.modelNN(X_train, parameters)
-        cost = self.costReg(model, Y_train, [parameters[0], parameters[2]], self.alpha)
+            for ii in range(len(self.all_weights)):
+                weights.append(tf.Variable(self.all_weights[ii]))
+                biases.append(tf.Variable(self.all_biases[ii]))
+
+        model = self.modelNN(X_train, weights, biases)
+        cost = self.costReg(model, Y_train, weights, self.alpha)
         optimizer = tf.train.AdamOptimizer(learning_rate=self.learning_rate_init).minimize(cost)
 
-        # Initialisation of the model
+        # Initialisation of the variables
         init = tf.global_variables_initializer()
 
         # Running the graph
@@ -168,45 +146,80 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                     optTest, cTest = sess.run([optimizer, cost], feed_dict={X_train: X_test, Y_train: y_test})
                     self.testCost.append(cTest)
                 self.trainCost.append(avg_cost)
-                if iter % 100 == 0:
+                if iter % 500 == 0:
                     print "Completed " + str(iter) + " iterations. \n"
 
-            self.w1 = sess.run(parameters[0])
-            self.b1 = sess.run(parameters[1])
-            self.w2 = sess.run(parameters[2])
-            self.b2 = sess.run(parameters[3])
+            # Saving the weights for later re-use
+            self.all_weights = []
+            self.all_biases = []
+            for ii in range(len(weights)):
+                self.all_weights.append(sess.run(weights[ii]))
+                self.all_biases.append(sess.run(biases[ii]))
 
-    def modelNN(self, X, parameters):
+    def modelNN(self, X, weights, biases):
         """
-        This function calculates the model neural network.
+        This function evaluates the output of the neural network. It takes as input a data set, the weights and the
+        biases.
 
-        :X: array of shape (n_samples, n_features)
-
-            This contains the input data with samples in the rows and features in the columns.
-
-        :parameters: array of TensorFlow variables of shape (2*len(hidden_layer_sizes+1), )
-
-            It contains the weights and the biases for each hidden layer and the output layer.
-
-        :returns: A Tensor with the model of the neural network.
+        :X: tf.placeholder of shape (n_samples, n_features)
+        :weights: list of tf.Variables of length len(hidden_layer_sizes) + 1
+        :biases: list of tf.Variables of length len(hidden_layer_sizes) + 1
+        :return: tf.Variable of size (n_samples, 1)
         """
 
-        # Definition of the model
-        a1 = tf.add(tf.matmul(X, tf.transpose(parameters[0])), parameters[1])  # output of layer1, size = n_sample x n_hidden_layer
-        a1 = tf.nn.sigmoid(a1)
-        model = tf.add(tf.matmul(a1, tf.transpose(parameters[2])), parameters[3])  # output of last layer, size = n_samples x 1
+        # Calculating the activation of the first hidden layer
+        z = tf.add(tf.matmul(X, tf.transpose(weights[0])), biases[0])
+        h = tf.nn.sigmoid(z)
 
-        return model
+        # Calculating the activation of all the hidden layers
+        for ii in range(len(self.hidden_layer_sizes)-1):
+            z = tf.add(tf.matmul(h, tf.transpose(weights[ii+1])), biases[ii+1])
+            h = tf.nn.sigmoid(z)
 
-    def costReg(self, model, Y_data, weights, regu):
+        # Calculating the output of the last layer
+        z = tf.add(tf.matmul(h, tf.transpose(weights[-1])), biases[-1])
+
+        return z
+
+    def __generate_weights(self):
+        """
+        This function generates the weights and the biases. It does so by looking at the size of the hidden layers and
+        the number of features in the descriptor. The weights are initialised randomly.
+
+        :return: lists (of length n_hidden_layers + 1) of tensorflow variables
+        """
+
+        weights = []
+        biases = []
+
+        # Weights from input layer to first hidden layer
+        weights.append(tf.Variable(tf.truncated_normal([self.hidden_layer_sizes[0], self.n_feat], stddev=0.01),
+                                   name='weight_in'))
+        biases.append(tf.Variable(tf.zeros([self.hidden_layer_sizes[0]]), name='bias_in'))
+
+        # Weights from one hidden layer to the next
+        for ii in range(len(self.hidden_layer_sizes) - 1):
+            weights.append(tf.Variable(
+                tf.truncated_normal([self.hidden_layer_sizes[ii + 1], self.hidden_layer_sizes[ii]], stddev=0.01),
+                name='weight_hidden'))
+            biases.append(tf.Variable(tf.zeros([self.hidden_layer_sizes[ii + 1]]), name='bias_hidden'))
+
+        # Weights from lat hidden layer to output layer
+        weights.append(
+            tf.Variable(tf.truncated_normal([1, self.hidden_layer_sizes[-1]], stddev=0.01), name='weight_out'))
+        biases.append(tf.Variable(tf.zeros([1]), name='bias_out'))
+
+        return weights, biases
+
+    def costReg(self, qm_data, nn_data, weights, regu):
         """
         This function calculates the squared error cost function with L2 regularisation.
 
-        :model: tensor
+        :nn_data: tensor
 
             This tensor contains the neural network model.
 
-        :Y_data: TensorFlow Place holder
+        :qm_data: TensorFlow Place holder
 
             This tensor contains the y part of the data once the graph is initialised.
 
@@ -219,15 +232,22 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             The parameter that tunes the amount of regularisation.
 
         :return: tensor
-
-            it returns the value of the squared error cost function (TF global_variable):
-            cost = sum_over_samples((model-Y_data)**2)/2 + sum(weights_level_1**2)/2 + sum(weights_level_2**2)/2
         """
-        cost = tf.nn.l2_loss(t=(model - Y_data))
-        regulariser = tf.nn.l2_loss(weights[0]) + tf.nn.l2_loss(weights[1])
-        cost = tf.reduce_mean(cost + regu * regulariser)
+        err = tf.square(tf.subtract(qm_data, nn_data))
+        cost = tf.reduce_mean(err, name="unreg_cost") # scalar
 
-        return cost
+        # Calculating the regularisation term
+        reg_l2 = tf.Variable(tf.zeros([1]), name="reg_term")
+        for ii in range(len(weights)):
+            reg_l2 = tf.add(reg_l2, tf.nn.l2_loss(weights[ii]))
+
+        # Multiplying the regularisation term by the regularisation parameter
+        reg_l2 = tf.scalar_mul(regu, reg_l2)
+
+        # Regularised cost
+        cost_reg = tf.add(cost, reg_l2, name="reg_cost")
+
+        return cost_reg
 
     def plotLearningCurve(self):
         """
@@ -296,8 +316,14 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
             X_test = tf.placeholder(tf.float32, [None, self.n_feat])
 
-            parameters = [tf.Variable(self.w1), tf.Variable(self.b1), tf.Variable(self.w2), tf.Variable(self.b2)]
-            model = self.modelNN(X_test, parameters)
+            weights = []
+            biases = []
+
+            for ii in range(len(self.all_weights)):
+                weights.append(tf.Variable(self.all_weights[ii]))
+                biases.append(tf.Variable(self.all_biases[ii]))
+
+            model = self.modelNN(X_test, weights, biases)
 
             init = tf.global_variables_initializer()
 
@@ -681,12 +707,11 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
 
 
-# This example tests the module on fitting a simple quadratic function and then plots the results
+# This example tests the module on fitting a simple cubic function and then plots the results
 
 if __name__ == "__main__":
 
-    estimator = MLPRegFlow(hidden_layer_sizes=(5,), learning_rate_init=0.01, max_iter=5000, alpha=0)
-    # pickle.dump(silvia, open('../tests/model.pickl','wb'))
+    estimator = MLPRegFlow(hidden_layer_sizes=(5, 5, 5), learning_rate_init=0.01, max_iter=5000, alpha=0)
     x = np.arange(-2.0, 2.0, 0.05)
     X = np.reshape(x, (len(x), 1))
     y = np.reshape(X ** 3, (len(x),))
@@ -709,5 +734,5 @@ if __name__ == "__main__":
     ax3.set_ylabel('prediction y')
     plt.show()
 
-    estimator.errorDistribution(X, y)
+    # estimator.errorDistribution(X, y)
 

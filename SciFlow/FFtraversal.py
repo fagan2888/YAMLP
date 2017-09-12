@@ -1,3 +1,8 @@
+"""
+This module contains functions that split the data set using a furthest first traversal procedure.
+"""
+
+
 import ImportData
 import numpy as np
 import CoulombMatrix
@@ -8,10 +13,12 @@ import matplotlib.pyplot as plt
 
 def fft_idx(X, k):
     """
-    This function does something.
-    :param X: parameter X
-    :param k: parameter k
-    :return: returns training indexes
+    This function goes through all the points in the data set and returns the indices of the samples to put into the
+    training set. X is the data set to split while k is the number of points that should be put into the training set.
+
+    :X: numpy array of shape (n_samples, n_features)
+    :k: int (smaller than n_samples)
+    :return: list of int
     """
 
     # Creating the matrix of the distances
