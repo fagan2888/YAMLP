@@ -1,5 +1,5 @@
 """
-This module implements a Tensorflow neural network (with scalar output) as a Scikit learn estimator.
+This module implements a Tensorflow neural network as a Scikit learn estimator.
 """
 
 from __future__ import print_function
@@ -714,8 +714,8 @@ if __name__ == "__main__":
 
     estimator = MLPRegFlow(hidden_layer_sizes=(5, 5, 5), learning_rate_init=0.01, max_iter=5000, alpha=0)
     x = np.arange(-2.0, 2.0, 0.05)
-    X = np.reshape(x, (len(x), 1))
-    y = np.atleast_2d(X ** 3).T
+    X = np.atleast_2d(x).T
+    y = X ** 3
 
     estimator.fit(X, y)
     y_pred = estimator.predict(X)
