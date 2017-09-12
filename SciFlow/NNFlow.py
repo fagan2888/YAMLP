@@ -2,6 +2,7 @@
 This module implements a Tensorflow neural network (with scalar output) as a Scikit learn estimator.
 """
 
+from __future__ import print_function
 import numpy as np
 from sklearn.base import BaseEstimator, ClassifierMixin
 from sklearn.utils.validation import check_X_y, check_array
@@ -12,9 +13,6 @@ import matplotlib.pyplot as plt
 from sklearn.metrics import r2_score
 import seaborn as sns
 import pandas as pd
-
-
-
 
 
 class MLPRegFlow(BaseEstimator, ClassifierMixin):
@@ -82,12 +80,13 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
         """
 
-        print "Starting the fitting process ... \n"
+        print( "Starting the fitting process ... \n")
 
         # Check that X and y have correct shape
-        X, y = check_X_y(X, y)
+        X, y = check_X_y(X, y, multi_output=True)
         # Modification of the y data, because tensorflow wants a column vector, while scikit learn uses a row vector
-        y = np.reshape(y, (len(y), 1))
+        if y.ndim == 1:
+            y = np.atleast_2d(y).T
 
         # Checking if a test set has been passed
         if test:
@@ -95,18 +94,20 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                 raise TypeError("foo() expected 2 arguments, got %d" % (len(test)))
             X_test = test[0]
             y_test = test[1]
-            check_X_y(X_test, y_test)
-            y_test = np.reshape(y_test, (len(y_test), 1))
+            check_X_y(X_test, y_test, multi_output=True)
+            if y.ndim == 1:
+                y_test = np.atleast_2d(y_test).T
 
         self.n_feat = X.shape[1]
         self.n_samples = X.shape[0]
+        self.n_output = y.shape[1]
 
         # Check the value of the batch size
         self.batch_size = self.checkBatchSize()
 
         # Initial set up of the NN
         X_train = tf.placeholder(tf.float32, [None, self.n_feat])
-        Y_train = tf.placeholder(tf.float32, [None, 1])
+        Y_train = tf.placeholder(tf.float32, [None, self.n_output])
 
         # This part either randomly initialises the weights and biases or restarts training from wherever it was stopped
         if self.alreadyInitialised == False:
@@ -147,7 +148,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                     self.testCost.append(cTest)
                 self.trainCost.append(avg_cost)
                 if iter % 500 == 0:
-                    print "Completed " + str(iter) + " iterations. \n"
+                    print( "Completed " + str(iter) + " iterations. \n")
 
             # Saving the weights for later re-use
             self.all_weights = []
@@ -204,10 +205,10 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
                 name='weight_hidden'))
             biases.append(tf.Variable(tf.zeros([self.hidden_layer_sizes[ii + 1]]), name='bias_hidden'))
 
-        # Weights from lat hidden layer to output layer
+        # Weights from lat hidden layer to output layers
         weights.append(
-            tf.Variable(tf.truncated_normal([1, self.hidden_layer_sizes[-1]], stddev=0.01), name='weight_out'))
-        biases.append(tf.Variable(tf.zeros([1]), name='bias_out'))
+            tf.Variable(tf.truncated_normal([self.n_output, self.hidden_layer_sizes[-1]], stddev=0.01), name='weight_out'))
+        biases.append(tf.Variable(tf.zeros([self.n_output]), name='bias_out'))
 
         return weights, biases
 
@@ -278,7 +279,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             batch_size = min(100, self.n_samples)
         else:
             if self.batch_size < 1 or self.batch_size > self.n_samples:
-                print "Warning: Got `batch_size` less than 1 or larger than sample size. It is going to be clipped"
+                print( "Warning: Got `batch_size` less than 1 or larger than sample size. It is going to be clipped")
                 batch_size = np.clip(self.batch_size, 1, self.n_samples)
             else:
                 batch_size = self.batch_size
@@ -304,12 +305,12 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
             This contains the input data with samples in the rows and features in the columns.
 
-        :return: array of size (n_samples,)
+        :return: array of size (n_samples, n_output)
 
             This contains the predictions for the target values corresponding to the samples contained in X.
 
         """
-        print "Calculating the predictions. \n"
+        print( "Calculating the predictions. \n")
 
         if self.checkIsFitted():
             check_array(X)
@@ -330,7 +331,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
             with tf.Session() as sess:
                 sess.run(init)
                 predictions = sess.run(model, feed_dict={X_test: X})
-                predictions = np.reshape(predictions,(predictions.shape[0],))
+                predictions = np.reshape(predictions,(predictions.shape[0],self.n_output))
 
             return predictions
         else:
@@ -345,7 +346,7 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
             This contains the input data with samples in the rows and features in the columns.
 
-        :y: array of shape (n_samples,)
+        :y: array of shape (n_samples, n_output)
 
             This contains the target values for each sample in the X matrix.
 
@@ -598,8 +599,8 @@ class MLPRegFlow(BaseEstimator, ClassifierMixin):
 
             x_square = self.reshape_triang(final_x[0,:], 7)
             self.x_square_tot.append(x_square)
-        print "The activations at the end of the optimisations are:"
-        print activations
+        print("The activations at the end of the optimisations are:")
+        print(activations)
 
         return self.x_square_tot
 
@@ -714,10 +715,12 @@ if __name__ == "__main__":
     estimator = MLPRegFlow(hidden_layer_sizes=(5, 5, 5), learning_rate_init=0.01, max_iter=5000, alpha=0)
     x = np.arange(-2.0, 2.0, 0.05)
     X = np.reshape(x, (len(x), 1))
-    y = np.reshape(X ** 3, (len(x),))
+    y = np.atleast_2d(X ** 3).T
 
     estimator.fit(X, y)
     y_pred = estimator.predict(X)
+
+    print("RMSD error:", np.sqrt(np.sum((y_pred - y)**2)/x.size))
 
     #  Visualisation of predictions
     fig2, ax2 = plt.subplots(figsize=(6,6))
